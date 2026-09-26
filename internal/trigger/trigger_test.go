@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -352,4 +353,99 @@ func readCipher(t *testing.T, db *sql.DB, projID string) []byte {
 		t.Fatalf("read cipher: %v", err)
 	}
 	return c
+}
+
+// --- 最近投递(触发配置页的「为什么没触发」) ------------------------------
+
+// seedDelivery 直接落一条投递记录(outcome 已定),避开 receiver 的验签/匹配路径。
+func seedDelivery(t *testing.T, db *sql.DB, projectID, event, branch, outcome, runID, at string) {
+	t.Helper()
+	_, err := db.Exec(
+		`INSERT INTO webhook_deliveries (id, project_id, delivery_id, event, branch, commit_sha, run_id, outcome, created_at)
+		 VALUES (?, ?, ?, ?, ?, 'sha-'||?, ?, ?, ?)`,
+		uuid.NewString(), projectID, uuid.NewString(), event, branch, outcome, runID, outcome, at,
+	)
+	if err != nil {
+		t.Fatalf("seed delivery: %v", err)
+	}
+}
+
+// 最近投递按时间倒序返回,并原样带出「拦在哪一道闸」的信息。
+func TestDeliveriesOrderAndFields(t *testing.T) {
+	db, _ := testDB(t)
+	projID := seedProject(t, db)
+	seedDelivery(t, db, projID, "Push Hook", "master", OutcomeAccepted, "run-1", "2026-09-26T10:00:00Z")
+	seedDelivery(t, db, projID, "", "master", IgnoredUnmatchedRecorded, "", "2026-09-26T11:00:00Z")
+	seedDelivery(t, db, projID, "Push Hook", "release/1.2", IgnoredPathNoMatch, "", "2026-09-26T12:00:00Z")
+
+	svc := New(db, vault.New(db, testMasterKey()))
+	got, err := svc.Deliveries(context.Background(), projID, 0)
+	if err != nil {
+		t.Fatalf("Deliveries: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("应返回 3 条, got %d", len(got))
+	}
+	if got[0].Outcome != IgnoredPathNoMatch || got[0].Branch != "release/1.2" {
+		t.Fatalf("最新一条应在最前且字段保真, got %+v", got[0])
+	}
+	if got[0].CreatedAt.IsZero() {
+		t.Fatal("createdAt 应被解析")
+	}
+	last := got[2]
+	if last.Outcome != OutcomeAccepted || last.RunID != "run-1" || last.Branch != "master" {
+		t.Fatalf("命中那条应带 runId, got %+v", last)
+	}
+}
+
+// limit:0 → 默认条数;超过上限截到上限;显式小值按值截断。
+func TestDeliveriesLimit(t *testing.T) {
+	db, _ := testDB(t)
+	projID := seedProject(t, db)
+	for i := 0; i < 5; i++ {
+		seedDelivery(t, db, projID, "Push Hook", "master", OutcomeAccepted, "run",
+			fmt.Sprintf("2026-09-26T1%d:00:00Z", i))
+	}
+	svc := New(db, vault.New(db, testMasterKey()))
+	ctx := context.Background()
+
+	if got, err := svc.Deliveries(ctx, projID, 2); err != nil || len(got) != 2 {
+		t.Fatalf("limit=2 应返回 2 条, got %d err=%v", len(got), err)
+	}
+	if got, err := svc.Deliveries(ctx, projID, 0); err != nil || len(got) != 5 {
+		t.Fatalf("limit=0 应取默认值(≥5 条), got %d err=%v", len(got), err)
+	}
+	// 超过上限 → 截到上限(此处仅有 5 条,故仍返回 5;断言不报错即可)。
+	if got, err := svc.Deliveries(ctx, projID, 9999); err != nil || len(got) != 5 {
+		t.Fatalf("超过上限应截断而非报错, got %d err=%v", len(got), err)
+	}
+}
+
+// 项目不存在 → ErrProjectNotFound(不返回空列表冒充「没有投递」)。
+func TestDeliveriesProjectNotFound(t *testing.T) {
+	db, _ := testDB(t)
+	svc := New(db, vault.New(db, testMasterKey()))
+	if _, err := svc.Deliveries(context.Background(), "no-such-project", 0); !errors.Is(err, ErrProjectNotFound) {
+		t.Fatalf("应报 ErrProjectNotFound, got %v", err)
+	}
+}
+
+// 投递只读:不影响去重账本,重复调用结果一致。
+func TestDeliveriesIsReadOnly(t *testing.T) {
+	db, _ := testDB(t)
+	projID := seedProject(t, db)
+	seedDelivery(t, db, projID, "Push Hook", "master", OutcomeAccepted, "run-1", "2026-09-26T10:00:00Z")
+	svc := New(db, vault.New(db, testMasterKey()))
+	ctx := context.Background()
+	a, err := svc.Deliveries(ctx, projID, 0)
+	if err != nil {
+		t.Fatalf("first: %v", err)
+	}
+	b, err := svc.Deliveries(ctx, projID, 0)
+	if err != nil {
+		t.Fatalf("second: %v", err)
+	}
+	if len(a) != len(b) || a[0].ID != b[0].ID {
+		t.Fatalf("读取不应改变账本: %d/%d", len(a), len(b))
+	}
 }

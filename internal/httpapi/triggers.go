@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/btboys/pipewright/internal/audit"
 	"github.com/btboys/pipewright/internal/trigger"
@@ -206,5 +208,59 @@ func makeResetTriggerSecretHandler(svc trigger.Service, aud audit.Recorder) http
 			"webhookSecret":       res.Secret, // 完整明文,仅此一次
 			"webhookSecretMasked": res.Masked,
 		})
+	}
+}
+
+// triggerDeliveryDTO 是一条 webhook 投递记录对外响应体(冻结契约;camelCase)。
+// outcome == "accepted" 时 runId 非空(可跳运行详情);其余为被忽略原因枚举。
+type triggerDeliveryDTO struct {
+	ID        string `json:"id"`
+	Event     string `json:"event"`
+	Branch    string `json:"branch"`
+	Commit    string `json:"commit"`
+	Outcome   string `json:"outcome"`
+	RunID     string `json:"runId"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// makeListTriggerDeliveriesHandler 返回 GET /api/projects/{id}/trigger/deliveries?limit=N
+// → { items: [...] }(认证;只读,无审计)。
+//
+// 用途:让「为什么没触发」在界面上自解释 —— 三道闸(事件订阅 / 分支映射 / 路径过滤)
+// 哪一道拦下的、拦在什么值上,都能直接从最近投递里看出来,不必靠响应体反推。
+func makeListTriggerDeliveriesHandler(svc trigger.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if svc == nil {
+			writeError(w, http.StatusServiceUnavailable, "internal", "触发配置服务未初始化")
+			return
+		}
+		id := chi.URLParam(r, "id")
+		limit := 0 // 0 → 领域层取默认值
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 0 {
+				writeError(w, http.StatusBadRequest, "bad_request", "limit 必须是非负整数")
+				return
+			}
+			limit = n
+		}
+		items, err := svc.Deliveries(r.Context(), id, limit)
+		if err != nil {
+			writeTriggerError(w, err)
+			return
+		}
+		out := make([]triggerDeliveryDTO, 0, len(items))
+		for _, d := range items {
+			out = append(out, triggerDeliveryDTO{
+				ID:        d.ID,
+				Event:     d.Event,
+				Branch:    d.Branch,
+				Commit:    d.Commit,
+				Outcome:   d.Outcome,
+				RunID:     d.RunID,
+				CreatedAt: d.CreatedAt.UTC().Format(time.RFC3339),
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": out})
 	}
 }

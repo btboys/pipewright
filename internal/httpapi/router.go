@@ -480,6 +480,8 @@ func New(webFS fs.FS, authn auth.Authenticator, opts ...Option) http.Handler {
 		// secret/reset 须在通用 trigger 路由之外单独注册;均过 auth + 写方法 CSRF。
 		t := o.triggers
 		ar.Get("/projects/{id}/trigger", makeGetTriggerHandler(t))
+		// 最近投递(只读):三道闸哪一道拦下的、拦在什么值上,直接在界面上自解释。
+		ar.Get("/projects/{id}/trigger/deliveries", makeListTriggerDeliveriesHandler(t))
 		ar.Put("/projects/{id}/trigger", makeSaveTriggerHandler(t))
 		ar.Post("/projects/{id}/trigger/secret/reset", makeResetTriggerSecretHandler(t, aud))
 

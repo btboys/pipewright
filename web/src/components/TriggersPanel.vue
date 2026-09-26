@@ -10,12 +10,15 @@
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   getTrigger,
   saveTrigger,
   resetSecret,
+  listTriggerDeliveries,
   type TriggerConfig,
   type BranchMapping,
+  type TriggerDelivery,
   type UnmatchedPolicy,
 } from '../api/triggers'
 import { HttpError } from '../api/http'
@@ -33,6 +36,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const router = useRouter()
 
 // ─── Load state ───────────────────────────────────────────────────────────────
 
@@ -236,6 +240,8 @@ async function handleSave(): Promise<void> {
     })
     applyConfig(updated)
     showSaveSuccess()
+    // 配置刚改过:重取最近投递,让「为什么没触发」立刻按新配置重新解释。
+    void loadDeliveries()
   } catch (err) {
     if (err instanceof HttpError) {
       if (err.status === 0) {
@@ -301,8 +307,85 @@ async function loadTrigger(): Promise<void> {
 }
 
 // Reload when projectId changes (e.g. panel embedded in tab shell)
-watch(() => props.projectId, loadTrigger)
+watch(() => props.projectId, () => {
+  void loadTrigger()
+  void loadDeliveries()
+})
 onMounted(loadTrigger)
+
+// ─── 最近投递(为什么没触发) ─────────────────────────────────────────────────
+// 每次 webhook 投递(命中与否)都在后端账本里留一行。读出来就能直接回答
+// 「三道闸哪一道拦下的、拦在什么值上」,不必靠响应体反推。
+const DELIVERY_LIMIT = 20
+const deliveries = ref<TriggerDelivery[]>([])
+const deliveriesState = ref<'idle' | 'loading' | 'error'>('idle')
+
+async function loadDeliveries(): Promise<void> {
+  deliveriesState.value = 'loading'
+  try {
+    deliveries.value = await listTriggerDeliveries(props.projectId, DELIVERY_LIMIT)
+    deliveriesState.value = 'idle'
+  } catch {
+    // 非致命:投递记录拉不到不影响配置本身的读写,静默降级为空列表。
+    deliveries.value = []
+    deliveriesState.value = 'error'
+  }
+}
+
+// 最新一条投递:它未被接受,就说明此刻正被某道闸拦着 —— 把原因顶到显眼处。
+const latestBlocked = computed<TriggerDelivery | undefined>(() => {
+  const latest = deliveries.value[0]
+  return latest && latest.outcome !== 'accepted' ? latest : undefined
+})
+
+/** 结果码 → 人读标签;未知码原样回退(不吞)。 */
+function outcomeLabel(outcome: string): string {
+  const key: Record<string, string> = {
+    accepted: 'outcomeAccepted',
+    event_not_subscribed: 'outcomeEventNotSubscribed',
+    unmatched_recorded: 'outcomeUnmatchedRecorded',
+    unmatched_ignored: 'outcomeUnmatchedIgnored',
+    path_no_match: 'outcomePathNoMatch',
+    duplicate: 'outcomeDuplicate',
+  }
+  const k = key[outcome]
+  return k ? t(`projectPanels.triggers.${k}`) : outcome || '—'
+}
+
+/** 未命中时给出「下一步怎么办」的一句话指引。 */
+function outcomeHint(outcome: string): string {
+  switch (outcome) {
+    case 'event_not_subscribed':
+      return t('projectPanels.triggers.hintEventNotSubscribed')
+    case 'unmatched_recorded':
+    case 'unmatched_ignored':
+      return t('projectPanels.triggers.hintUnmatched')
+    case 'path_no_match':
+      return t('projectPanels.triggers.hintPathNoMatch')
+    case 'duplicate':
+      return t('projectPanels.triggers.hintDuplicate')
+    default:
+      return ''
+  }
+}
+
+/** commit 短号(7 位);空/异常原样回退。 */
+function shortCommit(commit: string): string {
+  return commit ? commit.slice(0, 7) : '—'
+}
+
+/** 投递时刻的本地化短格式。 */
+function deliveryTime(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
+}
+
+/** 命中投递 → 跳到它创建的运行(与 Runs 页同一跳转约定)。 */
+function goToRun(runId: string): void {
+  void router.push({ name: 'run-detail', params: { id: runId } })
+}
+
+onMounted(loadDeliveries)
 
 // ─── Disclosed webhook URL ────────────────────────────────────────────────────
 
@@ -588,6 +671,77 @@ const displayWebhookUrl = computed(() => {
         </div>
       </section>
 
+      <!-- ═══ Section 6: 最近投递(为什么没触发) ══════════════════════════ -->
+      <section class="config-card" aria-labelledby="tp-deliveries-heading">
+        <div class="card-head">
+          <span class="card-icon" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+            </svg>
+          </span>
+          <h2 id="tp-deliveries-heading" class="card-title">{{ t('projectPanels.triggers.deliveriesTitle') }}</h2>
+          <span class="card-sub">{{ t('projectPanels.triggers.deliveriesSub') }}</span>
+          <button
+            class="deliveries-refresh"
+            :disabled="deliveriesState === 'loading'"
+            @click="loadDeliveries"
+          >
+            {{ deliveriesState === 'loading' ? t('projectPanels.triggers.deliveriesLoading') : t('projectPanels.triggers.deliveriesRefresh') }}
+          </button>
+        </div>
+        <div class="card-body card-body--pad">
+          <!-- 最新一条未被接受 → 正在被某道闸拦着,把原因顶到显眼处 -->
+          <p v-if="latestBlocked" class="delivery-alert" role="status">
+            <strong class="delivery-alert__title">{{ t('projectPanels.triggers.blockedTitle') }}</strong>
+            <span class="delivery-alert__reason">{{ outcomeLabel(latestBlocked.outcome) }}</span>
+            <span class="delivery-alert__meta">
+              <template v-if="latestBlocked.branch">· {{ latestBlocked.branch }}</template>
+              · {{ deliveryTime(latestBlocked.createdAt) }}
+            </span>
+            <span v-if="outcomeHint(latestBlocked.outcome)" class="delivery-alert__hint">
+              {{ outcomeHint(latestBlocked.outcome) }}
+            </span>
+          </p>
+
+          <p v-if="deliveries.length === 0" class="policy-desc">
+            {{ t('projectPanels.triggers.deliveriesEmpty') }}
+          </p>
+          <div v-else class="deliveries-scroll">
+            <table class="deliveries-tbl">
+              <thead>
+                <tr>
+                  <th>{{ t('projectPanels.triggers.deliveriesColEvent') }}</th>
+                  <th>{{ t('projectPanels.triggers.deliveriesColBranch') }}</th>
+                  <th>{{ t('projectPanels.triggers.deliveriesColCommit') }}</th>
+                  <th>{{ t('projectPanels.triggers.deliveriesColOutcome') }}</th>
+                  <th>{{ t('projectPanels.triggers.deliveriesColTime') }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="d in deliveries" :key="d.id">
+                  <td class="mono">{{ d.event || '—' }}</td>
+                  <td class="mono">{{ d.branch || '—' }}</td>
+                  <td class="mono">{{ shortCommit(d.commit) }}</td>
+                  <td>
+                    <span
+                      class="delivery-outcome"
+                      :class="d.outcome === 'accepted' ? 'delivery-outcome--ok' : 'delivery-outcome--blocked'"
+                    >{{ outcomeLabel(d.outcome) }}</span>
+                  </td>
+                  <td class="deliveries-time">{{ deliveryTime(d.createdAt) }}</td>
+                  <td>
+                    <button v-if="d.runId" class="deliveries-run" @click="goToRun(d.runId)">
+                      {{ t('projectPanels.triggers.runLink') }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ═══ Scheduled (cron) trigger · Story 8-6 ════════════════════════ -->
       <CronPanel :project-id="props.projectId" />
 
@@ -756,6 +910,73 @@ const displayWebhookUrl = computed(() => {
 .policy-desc { margin-top: 12px; font-size: 0.8rem; color: var(--color-faint); line-height: 1.6; }
 .policy-desc code { font-family: var(--font-mono); font-size: 0.78em; padding: 1px 4px; border-radius: 4px; background: var(--color-inset); color: var(--color-dim); }
 .path-filters-input { height: auto; min-height: 92px; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+
+/* ─── 最近投递(为什么没触发) ───────────────────── */
+.deliveries-refresh {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-dim);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  border-radius: var(--rounded);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+.deliveries-refresh:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.deliveries-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.delivery-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-amber-line, var(--color-border-strong));
+  border-left: 3px solid var(--color-amber);
+  border-radius: var(--rounded);
+  background: var(--color-amber-soft);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.delivery-alert__title { color: var(--color-text); font-weight: 600; }
+.delivery-alert__reason { font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-amber); font-weight: 600; }
+.delivery-alert__meta { color: var(--color-faint); font-family: var(--font-mono); font-size: 0.75rem; }
+.delivery-alert__hint { flex-basis: 100%; color: var(--color-dim); }
+
+.deliveries-scroll { max-height: 320px; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--rounded); }
+.deliveries-tbl { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+.deliveries-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--color-inset);
+  color: var(--color-faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.deliveries-tbl tbody td { padding: 8px 12px; border-top: 1px solid var(--color-border); color: var(--color-text); white-space: nowrap; }
+.deliveries-tbl tbody tr:hover { background: var(--color-surface-hover); }
+.deliveries-time { color: var(--color-faint); }
+.delivery-outcome { font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: var(--rounded-full); }
+.delivery-outcome--ok { color: var(--color-green); background: var(--color-green-soft); }
+.delivery-outcome--blocked { color: var(--color-amber); background: var(--color-amber-soft); }
+.deliveries-run {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.deliveries-run:hover { text-decoration: underline; }
 
 /* ─── Save bar ────────────────────────────────── */
 .save-bar { display: flex; justify-content: flex-start; padding-bottom: 8px; }

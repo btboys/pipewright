@@ -114,6 +114,29 @@ type ResetResult struct {
 	Masked string
 }
 
+// DeliveryRecord 是一条 webhook 投递记录(触发配置页「最近投递」的数据源)。
+//
+// 每次投递都会在去重账本里留一行(无论命中与否),把它读出来就能回答「为什么没触发」:
+// 三道闸(事件订阅 → 分支映射 → 路径过滤)哪一道拦下的、拦在什么值上,不必靠响应体反推。
+//   - Outcome == OutcomeAccepted 时 RunID 非空(指向命中创建的运行);
+//   - 其余为被忽略的原因枚举(event_not_subscribed / duplicate / unmatched_recorded /
+//     unmatched_ignored / path_no_match)。
+type DeliveryRecord struct {
+	ID        string
+	Event     string // 归一化后的事件名(如 "Push Hook");Codeup 系无事件头时由 object_kind 判定
+	Branch    string // 触发引用名(push 为分支、tag/release 为标签)
+	Commit    string
+	Outcome   string
+	RunID     string
+	CreatedAt time.Time
+}
+
+// deliveryDefaultLimit / deliveryMaxLimit 界定「最近投递」的取数条数(默认 20,上限 100,防滥取)。
+const (
+	deliveryDefaultLimit = 20
+	deliveryMaxLimit     = 100
+)
+
 // Service 定义触发配置领域对外接口。
 type Service interface {
 	// Get 返回项目触发配置(密钥仅掩码)。首次访问无配置时惰性生成默认
@@ -123,6 +146,9 @@ type Service interface {
 	Save(ctx context.Context, projectID string, in SaveInput) (*Config, error)
 	// ResetSecret 重新生成并加密签名密钥(旧值失效),返回完整明文(仅此一次)+ 掩码。
 	ResetSecret(ctx context.Context, projectID string) (*ResetResult, error)
+	// Deliveries 返回该项目最近的投递记录(created_at 倒序)。limit<=0 → 默认 20,超过上限截到 100。
+	// 只读;项目不存在 → ErrProjectNotFound。
+	Deliveries(ctx context.Context, projectID string, limit int) ([]DeliveryRecord, error)
 }
 
 // service 是 store + vault 支撑的 Service 实现。
@@ -201,6 +227,48 @@ func (s *service) Save(ctx context.Context, projectID string, in SaveInput) (*Co
 		return nil, fmt.Errorf("trigger: update config: %w", err)
 	}
 	return s.Get(ctx, projectID)
+}
+
+// Deliveries 返回该项目最近的投递记录(created_at 倒序,同秒按 id 倒序稳定)。只读。
+// limit<=0 → deliveryDefaultLimit;超过 deliveryMaxLimit 截到上限。
+func (s *service) Deliveries(ctx context.Context, projectID string, limit int) ([]DeliveryRecord, error) {
+	projectID = strings.TrimSpace(projectID)
+	if err := s.ensureProjectExists(ctx, projectID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = deliveryDefaultLimit
+	}
+	if limit > deliveryMaxLimit {
+		limit = deliveryMaxLimit
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, event, branch, commit_sha, outcome, run_id, created_at
+		 FROM webhook_deliveries WHERE project_id = ?
+		 ORDER BY created_at DESC, id DESC LIMIT ?`, projectID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("trigger: list deliveries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]DeliveryRecord, 0, limit)
+	for rows.Next() {
+		var (
+			d          DeliveryRecord
+			createdStr string
+		)
+		if err := rows.Scan(&d.ID, &d.Event, &d.Branch, &d.Commit, &d.Outcome, &d.RunID, &createdStr); err != nil {
+			return nil, fmt.Errorf("trigger: scan delivery: %w", err)
+		}
+		if ts, perr := time.Parse(time.RFC3339, createdStr); perr == nil {
+			d.CreatedAt = ts
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("trigger: iterate deliveries: %w", err)
+	}
+	return out, nil
 }
 
 func (s *service) ResetSecret(ctx context.Context, projectID string) (*ResetResult, error) {

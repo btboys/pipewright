@@ -370,3 +370,65 @@ func TestWebhookCodeupNoEventHeaderAccept(t *testing.T) {
 		t.Fatalf("object_kind=push 应触发运行, got %s", raw)
 	}
 }
+
+// TestTriggerDeliveriesExposeIgnoreReason 验证「最近投递」把被拦下的原因暴露出来:
+// 投一次分支不命中映射的 Codeup 投递 → 触发配置页能读到事件/分支/忽略原因,
+// 不必再靠响应体反推(此前 webhook_deliveries 只有写、无人读)。
+func TestTriggerDeliveriesExposeIgnoreReason(t *testing.T) {
+	srv, client, csrf, projID, token, secret := setupWebhookServer(t)
+
+	body := []byte(`{"object_kind":"push","ref":"refs/heads/master","after":"deadbeef"}`)
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/webhooks/"+token, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(trigger.HeaderCodeupToken, secret)
+	whResp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		t.Fatalf("do webhook: %v", err)
+	}
+	_ = whResp.Body.Close()
+
+	resp := doJSON(t, client, http.MethodGet, srv.URL+"/api/projects/"+projID+"/trigger/deliveries?limit=5", csrf, "")
+	raw, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (%s)", resp.StatusCode, raw)
+	}
+	var out struct {
+		Items []struct {
+			Event   string `json:"event"`
+			Branch  string `json:"branch"`
+			Outcome string `json:"outcome"`
+			RunID   string `json:"runId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal: %v (%s)", err, raw)
+	}
+	if len(out.Items) == 0 {
+		t.Fatalf("应至少有一条投递记录: %s", raw)
+	}
+	got := out.Items[0]
+	// 事件名由 object_kind 兜底判定(Codeup 无事件头);分支不命中映射 → 记 unmatched_ignored。
+	if got.Event != "Push Hook" {
+		t.Fatalf("事件名应为 Push Hook(由 object_kind 判定), got %q", got.Event)
+	}
+	if got.Branch != "master" {
+		t.Fatalf("分支应为 master, got %q", got.Branch)
+	}
+	if got.Outcome != "unmatched_ignored" {
+		t.Fatalf("应记录未匹配原因, got %q", got.Outcome)
+	}
+	if got.RunID != "" {
+		t.Fatalf("未命中不应带 runId, got %q", got.RunID)
+	}
+
+	// 非法 limit → 400。
+	bad := doJSON(t, client, http.MethodGet, srv.URL+"/api/projects/"+projID+"/trigger/deliveries?limit=abc", csrf, "")
+	_ = bad.Body.Close()
+	if bad.StatusCode != http.StatusBadRequest {
+		t.Fatalf("非法 limit 应 400, got %d", bad.StatusCode)
+	}
+}

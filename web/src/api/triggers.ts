@@ -4,6 +4,7 @@
  * GET  /api/projects/{id}/trigger                  → TriggerConfig
  * PUT  /api/projects/{id}/trigger                  → TriggerConfig  (needs CSRF)
  * POST /api/projects/{id}/trigger/secret/reset     → SecretResetResult (needs CSRF)
+ * GET  /api/projects/{id}/trigger/deliveries       → { items: TriggerDelivery[] }
  *
  * webhookSecretMasked is always masked (e.g. "whsec_••••a91f").
  * The full plaintext secret is ONLY available in SecretResetResult.webhookSecret,
@@ -74,10 +75,44 @@ export interface SecretResetResult {
   webhookSecretMasked: string
 }
 
+/**
+ * One recorded webhook delivery. Every delivery lands here (accepted or not), so the
+ * trigger page can show *why* nothing fired — which gate stopped it and on what value —
+ * instead of making the operator infer it from the raw HTTP response.
+ *
+ * `outcome` is `'accepted'` (then `runId` is set) or one of the ignore reasons:
+ * `event_not_subscribed` | `no_branch_match` | `path_no_match` | `duplicate` |
+ * `unmatched_ignored` | `unmatched_recorded`.
+ */
+export interface TriggerDelivery {
+  id: string
+  /** Normalized event name, e.g. `'Push Hook'`; derived from `object_kind` when the
+   *  platform sends no event header (云效 Codeup). */
+  event: string
+  /** Triggered ref: branch name for pushes, tag name for tag/release events. */
+  branch: string
+  commit: string
+  outcome: string
+  /** Set only when `outcome === 'accepted'`. */
+  runId: string
+  createdAt: string
+}
+
 // ─── API functions ────────────────────────────────────────────────────────────
 
 export async function getTrigger(projectId: string): Promise<TriggerConfig> {
   return http.get<TriggerConfig>(`/api/projects/${projectId}/trigger`)
+}
+
+/** Recent webhook deliveries (newest first). `limit` defaults to 20 server-side (max 100). */
+export async function listTriggerDeliveries(
+  projectId: string,
+  limit = 20,
+): Promise<TriggerDelivery[]> {
+  const res = await http.get<{ items: TriggerDelivery[] }>(
+    `/api/projects/${projectId}/trigger/deliveries?limit=${limit}`,
+  )
+  return res.items ?? []
 }
 
 export async function saveTrigger(

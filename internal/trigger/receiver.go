@@ -58,10 +58,11 @@ const (
 )
 
 // 投递处理结果(accepted / 各 ignored 原因枚举,冻结契约)。
+// 未匹配分支时的原因由 unmatchedPolicy 决定(record → unmatched_recorded,ignore → unmatched_ignored),
+// 故不存在独立的「分支不匹配」取值 —— 曾有的 no_branch_match 是赋值后即被覆盖的死值,从未落库过。
 const (
 	OutcomeAccepted           = "accepted"
 	IgnoredEventNotSubscribed = "event_not_subscribed"
-	IgnoredNoBranchMatch      = "no_branch_match"
 	IgnoredDuplicate          = "duplicate"
 	IgnoredUnmatchedIgnored   = "unmatched_ignored"
 	// IgnoredPathNoMatch:配了路径过滤,但本次 push 改动文件不匹配任一 glob(monorepo · P0)。
@@ -263,10 +264,9 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 	// 分支匹配(通配 glob)。
 	mapping, matched := matchBranch(parsed.Branch, cfg.BranchMappings)
 	if !matched {
-		reason := IgnoredNoBranchMatch
-		if cfg.UnmatchedPolicy == PolicyRecord {
-			reason = IgnoredUnmatchedRecorded
-		} else {
+		// 未命中:原因由未匹配策略决定(record 记一笔 / ignore 仅忽略),两者都不建运行。
+		reason := IgnoredUnmatchedRecorded
+		if cfg.UnmatchedPolicy != PolicyRecord {
 			reason = IgnoredUnmatchedIgnored
 		}
 		rc.setOutcome(ctx, recID, reason)
