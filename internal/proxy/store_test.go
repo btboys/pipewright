@@ -32,7 +32,7 @@ func TestStoreCRUDRoundtrip(t *testing.T) {
 		if got.Domain != "app.example.com" || got.UpstreamContainer != "web" || got.UpstreamPort != 8080 {
 			t.Fatalf("路由字段不符: %+v", got)
 		}
-		if !got.Enabled || got.CertStatus != CertStatusPending || got.TLSMode != tlsModeAuto {
+		if !got.Enabled || got.CertStatus != CertStatusPending || got.TLSMode != TLSModeAuto {
 			t.Fatalf("默认态不符: enabled=%v cert=%s tls=%s", got.Enabled, got.CertStatus, got.TLSMode)
 		}
 

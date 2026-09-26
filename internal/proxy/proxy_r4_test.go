@@ -16,7 +16,7 @@ func TestRenderLoadBalancingWithHealth(t *testing.T) {
 			HealthURI:      "/healthz",
 			HealthInterval: "10s",
 		},
-	}}, nil)
+	}}, nil, nil)
 
 	want := `app.example.com {
     reverse_proxy web1:8080 web2:8080 web3:8080 {
@@ -36,7 +36,7 @@ func TestRenderGRPC(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "grpc.example.com", UpstreamContainer: "svc", UpstreamPort: 50051,
 		Config: RouteConfig{GRPC: true},
-	}}, nil)
+	}}, nil, nil)
 	want := `grpc.example.com {
     reverse_proxy svc:50051 {
         transport http {
@@ -61,7 +61,7 @@ func TestRenderLBHealthGRPCCombined(t *testing.T) {
 			HealthInterval: "5s",
 			GRPC:           true,
 		},
-	}}, nil)
+	}}, nil, nil)
 	want := `api.example.com {
     reverse_proxy api1:9000 api2:9000 {
         lb_policy least_conn
@@ -83,7 +83,7 @@ func TestRenderLBFirstPolicyNoBlock(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "plain.example.com", UpstreamContainer: "web", UpstreamPort: 80,
 		Config: RouteConfig{Upstreams: []Upstream{{Container: "web2", Port: 80}}}, // 仅多上游、无策略/健康
-	}}, nil)
+	}}, nil, nil)
 	if !strings.Contains(out, "    reverse_proxy web:80 web2:80\n") {
 		t.Fatalf("无策略/健康时应单行多上游:\n%s", out)
 	}
@@ -98,7 +98,7 @@ func TestRenderTCPLayer4Global(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "db.example.com", UpstreamContainer: "web", UpstreamPort: 80,
 		Config: RouteConfig{TCPPassthrough: &TCPConfig{ListenPort: 5432, UpstreamContainer: "pg", UpstreamPort: 5432}},
-	}}, nil)
+	}}, nil, nil)
 	want := `{
     layer4 {
         :5432 {
@@ -124,7 +124,7 @@ func TestRenderTCPLayer4Global(t *testing.T) {
 func TestRenderNoTCPNoGlobalBlock(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "app.example.com", UpstreamContainer: "web", UpstreamPort: 80,
-	}}, nil)
+	}}, nil, nil)
 	if strings.Contains(out, "layer4") {
 		t.Fatalf("无 TCP 路由不应有 layer4 块:\n%s", out)
 	}
@@ -137,7 +137,7 @@ func TestRenderMultiTCPSorted(t *testing.T) {
 			Config: RouteConfig{TCPPassthrough: &TCPConfig{ListenPort: 6379, UpstreamContainer: "redis", UpstreamPort: 6379}}},
 		{Domain: "b.example.com", UpstreamContainer: "w", UpstreamPort: 80,
 			Config: RouteConfig{TCPPassthrough: &TCPConfig{ListenPort: 5432, UpstreamContainer: "pg", UpstreamPort: 5432}}},
-	}, nil)
+	}, nil, nil)
 	i5432 := strings.Index(out, ":5432 {")
 	i6379 := strings.Index(out, ":6379 {")
 	if i5432 == -1 || i6379 == -1 || i5432 > i6379 {

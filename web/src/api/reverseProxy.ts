@@ -25,8 +25,13 @@ import { http } from './http'
 /** Certificate lifecycle for a route, as reported by the backend / Caddy. */
 export type CertStatus = 'pending' | 'issued' | 'failed'
 
-/** TLS mode — only Let's Encrypt auto-issuance in this MVP. */
-export type TlsMode = 'auto'
+/**
+ * TLS certificate source for a route:
+ * - `'auto'` — Caddy issues/renews via its built-in ACME (Let's Encrypt) client.
+ * - `'acme.sh'` — `acme.sh` on the target host issues/renews (DNS-01 only, so a DNS
+ *   provider is required), and Caddy just loads the resulting cert files.
+ */
+export type TlsMode = 'auto' | 'acme.sh'
 
 /** Redirect HTTP statuses we support (R2 / FR-9). */
 export type RedirectStatus = 301 | 302 | 307 | 308
@@ -195,6 +200,8 @@ export interface UpdateProxyRouteInput {
   upstreamContainer?: string
   upstreamPort?: number
   config: Omit<ProxyRouteConfig, 'basicAuthEnabled'>
+  /** Certificate source. Omit to leave unchanged; `'acme.sh'` requires a DNS provider. */
+  tlsMode?: TlsMode
   /** New Basic-Auth password (write-only). Omit / `''` to keep the existing one. */
   basicAuthPassword?: string
 }
@@ -210,6 +217,10 @@ export interface CreateProxyRouteInput {
    */
   upstreamContainer: string
   upstreamPort: number
+  /** Certificate source; defaults to `'auto'` (Caddy's own ACME) when omitted. */
+  tlsMode?: TlsMode
+  /** DNS provider to use for DNS-01. Required when `tlsMode` is `'acme.sh'`. */
+  dnsProviderId?: string
   /**
    * Partial advanced config sent on create. For the simple bind form this carries
    * only `upstreamKind` (`'container'` | `'address'`); the backend fills the rest
@@ -242,6 +253,18 @@ export async function setProxyRouteEnabled(id: string, enabled: boolean): Promis
  */
 export async function refreshProxyRoute(id: string): Promise<ProxyRoute> {
   return http.post<ProxyRoute>(`/api/proxy/routes/${encodeURIComponent(id)}/refresh`, {})
+}
+
+/**
+ * Issue / renew a route's certificate via `acme.sh` on its host (only meaningful for
+ * `tlsMode: 'acme.sh'`; `'auto'` routes are managed by Caddy — the backend rejects those).
+ *
+ * `acme.sh` skips re-signing while the cert is still valid, so this is safe to press
+ * repeatedly (no Let's Encrypt rate-limit risk). An issuance failure is reported as
+ * route state (`certStatus: 'failed'` + human `certDetail`), not as a thrown error.
+ */
+export async function issueProxyCert(id: string): Promise<ProxyRoute> {
+  return http.post<ProxyRoute>(`/api/proxy/routes/${encodeURIComponent(id)}/cert`, {})
 }
 
 /**

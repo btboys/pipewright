@@ -32,7 +32,11 @@ import (
 
 // tls_mode / cert_status 枚举(DB 存小写字串;JSON 同名)。
 const (
-	tlsModeAuto = "auto"
+	// TLSModeAuto 表示证书由 Caddy 内置 ACME(Let's Encrypt)自动签发/续期(默认,向后兼容)。
+	TLSModeAuto = "auto"
+	// TLSModeAcmeSh 表示证书由目标主机上的 acme.sh 签发/续期(DNS-01),Caddy 以显式
+	// `tls <fullchain> <privkey>` 加载 —— 使 stock caddy:2 也能签泛域名,不依赖含 DNS 插件的自构建镜像。
+	TLSModeAcmeSh = "acme.sh"
 
 	// UpstreamKindContainer 表示上游为目标主机上的 docker 容器(默认 / 向后兼容):
 	// UpstreamContainer = 容器名,Caddy 把它接入共享网络并按容器名路由。空串归一化为本值。
@@ -69,6 +73,13 @@ var (
 	ErrInvalidUpstreamKind = errors.New("proxy: invalid upstream kind")
 	// ErrInvalidUpstreamHost 表示 address 上游的 HOST 非法(非 IP / FQDN / host.docker.internal)。
 	ErrInvalidUpstreamHost = errors.New("proxy: invalid upstream host")
+	// ErrInvalidTLSMode 表示 tls_mode 非白名单枚举(非 auto | acme.sh)。
+	ErrInvalidTLSMode = errors.New("proxy: invalid tls mode")
+	// ErrAcmeNeedsDNS 表示 acme.sh 模式未绑 DNS 提供商(该模式下 Caddy 仍占着 80/443,HTTP-01 无从
+	// 校验,只能走 DNS-01,故必须先绑一个 DNS 提供商)。
+	ErrAcmeNeedsDNS = errors.New("proxy: acme.sh 模式必须绑定 DNS 提供商(走 DNS-01 签发)")
+	// ErrAcmeIssue 表示目标主机上 acme.sh 签发/安装证书失败(人话原因在错误串尾部,由上层透出)。
+	ErrAcmeIssue = errors.New("proxy: acme.sh 签发证书失败")
 
 	// ErrPortConflict 表示目标主机 80/443 被占用,无法起 Caddy(LE 校验需 80)。
 	ErrPortConflict = errors.New("proxy: 80/443 端口被占用,无法启动反代(Let's Encrypt 校验需要 80)")
@@ -117,7 +128,7 @@ type Route struct {
 	Domain            string
 	UpstreamContainer string
 	UpstreamPort      int
-	TLSMode           string // "auto"
+	TLSMode           string // "auto"(Caddy 内置 ACME) | "acme.sh"(主机上 acme.sh 签发,Caddy 显式加载)
 	Enabled           bool
 	CertStatus        string // "pending" | "issued" | "failed"
 	CertDetail        string
@@ -231,6 +242,9 @@ type CreateInput struct {
 	UpstreamKind string
 	// DNSProviderID(R3)非空 → 该路由走 DNS-01(通配符域名必需)。空 = HTTP-01。
 	DNSProviderID string
+	// TLSMode ∈ "auto"(默认/空) | "acme.sh"。acme.sh 模式证书由目标主机上的 acme.sh 经 DNS-01
+	// 签发/续期,Caddy 以显式 tls 指令加载(故必须同时给 DNSProviderID)。
+	TLSMode string
 }
 
 // UpdateInput 是更新路由(R2)的入参。冻结契约。
@@ -238,6 +252,7 @@ type UpdateInput struct {
 	UpstreamContainer string      // 空 = 保持不变
 	UpstreamPort      int         // 0 = 保持不变
 	UpstreamKind      string      // ""/"container" | "address";归一化进 Config.UpstreamKind
+	TLSMode           string      // ""=保持不变 | "auto" | "acme.sh"
 	Config            RouteConfig //
 	BasicAuthPassword string      // 明文;非空 → bcrypt 哈希入 Config.BasicAuthHash;若 BasicAuthUser=="" → 清空认证
 }
@@ -254,6 +269,10 @@ type Service interface {
 	SetEnabled(ctx context.Context, id string, on bool) error
 	// RefreshStatus 经 TLS 握手探测域名:443 回写 cert_status + cert_detail。
 	RefreshStatus(ctx context.Context, id string) (*Route, error)
+	// IssueCert 在目标主机上经 acme.sh 签发/续期该路由的证书(DNS-01)→ 回写 cert_status。
+	// 仅对 tls_mode=acme.sh 的路由有效;auto 模式返回 ErrInvalidTLSMode(该模式由 Caddy 自理)。
+	// acme.sh 自身幂等:证书仍在有效期则直接复用,除非运维在到期前主动续期。
+	IssueCert(ctx context.Context, id string) (*Route, error)
 	// Update 校验入参 → 持久化高级配置(含 bcrypt 口令)→ apply(reload)。
 	Update(ctx context.Context, id string, in UpdateInput) (*Route, error)
 	// Overview 返回全部路由 + 所属主机展示名(跨主机证书总览大盘用)。
@@ -326,6 +345,7 @@ func (s *service) Create(ctx context.Context, in CreateInput) (*Route, error) {
 	in.UpstreamContainer = strings.TrimSpace(in.UpstreamContainer)
 	in.UpstreamKind = normalizeUpstreamKind(in.UpstreamKind)
 	in.DNSProviderID = strings.TrimSpace(in.DNSProviderID)
+	in.TLSMode = normalizeTLSMode(in.TLSMode)
 	if err := validateCreate(in); err != nil {
 		return nil, err
 	}
@@ -390,17 +410,28 @@ func (s *service) RefreshStatus(ctx context.Context, id string) (*Route, error) 
 	if err != nil {
 		return nil, err
 	}
-	// 优先经 SSH 直接读 Caddy 容器里已签发的证书文件来判定状态:这反映 Caddy 的真实证书态,
-	// 不受「Caddy 不在 443(被宿主 nginx 占用而映射到别的端口)/ 公网 DNS 未指向 / 探测方有本地代理」
-	// 等部署形态影响——公网 TLS 握手探测在这些场景会误报 pending/failed,而证书其实早已签发。
-	// 读不到(无 SSH / 容器无此域名证书文件 / 传输层错误)才回退到公网 443 握手探测。
-	if res, ok := s.probeCaddyCertViaSSH(ctx, r.ServerID, r.Domain); ok {
+	// 优先经 SSH 直接读证书文件来判定状态:这反映真实证书态,不受「Caddy 不在 443(被宿主 nginx
+	// 占用而映射到别的端口)/ 公网 DNS 未指向 / 探测方有本地代理」等部署形态影响 —— 公网 TLS 握手
+	// 探测在这些场景会误报 pending/failed,而证书其实早已签发。
+	//   - acme.sh 模式:直读主机上 acme.sh install-cert 落盘的 fullchain。
+	//   - auto 模式:进 Caddy 容器读 /data 下的证书。
+	// 读不到(无 SSH / 尚无该域名证书文件 / 传输层错误)才回退到公网 443 握手探测。
+	var (
+		res ProbeResult
+		ok  bool
+	)
+	if normalizeTLSMode(r.TLSMode) == TLSModeAcmeSh {
+		res, ok = s.probeAcmeCertViaSSH(ctx, r.ServerID, r.Domain)
+	} else {
+		res, ok = s.probeCaddyCertViaSSH(ctx, r.ServerID, r.Domain)
+	}
+	if ok {
 		if err := s.store.setCertStatus(ctx, id, res.Status, res.Detail); err != nil {
 			return nil, err
 		}
 		return s.store.get(ctx, id)
 	}
-	res := s.prober.Probe(ctx, r.Domain)
+	res = s.prober.Probe(ctx, r.Domain)
 	if err := s.store.setCertStatus(ctx, id, res.Status, res.Detail); err != nil {
 		return nil, err
 	}
@@ -413,9 +444,6 @@ func (s *service) RefreshStatus(ctx context.Context, id string) (*Route, error) 
 //   - 证书文件在但不在有效期(临时证/尚未生效)→ pending。
 //   - 无 tg / serverID 空 / SSH 传输层错误 / 无该域名证书文件 → ok=false(回退公网探测)。
 func (s *service) probeCaddyCertViaSSH(ctx context.Context, serverID, domain string) (ProbeResult, bool) {
-	if s.tg == nil || strings.TrimSpace(serverID) == "" {
-		return ProbeResult{}, false
-	}
 	// Caddy 把通配符 *.example.com 的证书存为目录/文件名 wildcard_.example.com。
 	name := domain
 	if strings.HasPrefix(name, "*.") {
@@ -423,9 +451,25 @@ func (s *service) probeCaddyCertViaSSH(ctx context.Context, serverID, domain str
 	}
 	// 跨各 CA 目录 glob 该域名的叶子证书;仅 cat 公钥证书(.crt),绝不读 .key 私钥。
 	certGlob := "/data/caddy/certificates/*/" + name + "/" + name + ".crt"
-	out, err := s.tg.Exec(ctx, serverID, []string{
+	return s.probeCertViaSSH(ctx, serverID, []string{
 		"docker", "exec", caddyContainer, "sh", "-c", "cat " + certGlob + " 2>/dev/null",
 	})
+}
+
+// probeAcmeCertViaSSH 经 target(SSH)读目标主机上 acme.sh install-cert 落盘的 fullchain(公钥部分,
+// 绝不碰 privkey),解析成证书状态。ok=false 表示「读不到、判不了」,调用方据此回退公网探测。
+func (s *service) probeAcmeCertViaSSH(ctx context.Context, serverID, domain string) (ProbeResult, bool) {
+	// 路径由常量 + 已校验域名拼成(无 shell 元字符);直接 cat,不经 shell。
+	return s.probeCertViaSSH(ctx, serverID, []string{"cat", acmeHostCertPath(domain)})
+}
+
+// probeCertViaSSH 跑一条「输出 PEM 证书文本」的远端命令,解析第一张证书并判定状态。
+// 传输层错误 / 无输出 / 解析不出证书 → ok=false(调用方回退公网探测)。
+func (s *service) probeCertViaSSH(ctx context.Context, serverID string, cmd []string) (ProbeResult, bool) {
+	if s.tg == nil || strings.TrimSpace(serverID) == "" {
+		return ProbeResult{}, false
+	}
+	out, err := s.tg.Exec(ctx, serverID, cmd)
 	if err != nil || out == nil {
 		return ProbeResult{}, false // 传输层错误(SSH 不可达等)→ 回退
 	}
@@ -516,6 +560,18 @@ func (s *service) Update(ctx context.Context, id string, in UpdateInput) (*Route
 	if isWildcardDomain(r.Domain) && cfg.DNSProviderID == "" {
 		return nil, ErrWildcardNeedsDNS
 	}
+	// TLS 模式(空 = 保持不变):切换 auto ↔ acme.sh 会改变证书来源,随后必须重下发 Caddyfile。
+	tlsMode := normalizeTLSMode(r.TLSMode)
+	if m := strings.ToLower(strings.TrimSpace(in.TLSMode)); m != "" {
+		if !validTLSMode(m) {
+			return nil, ErrInvalidTLSMode
+		}
+		tlsMode = m
+	}
+	// acme.sh 模式必须绑 DNS 提供商(Caddy 占着 80/443,只能走 DNS-01)。
+	if tlsMode == TLSModeAcmeSh && cfg.DNSProviderID == "" {
+		return nil, ErrAcmeNeedsDNS
+	}
 	// R3:若引用了 DNS 提供商,校验其存在 + 类型合法(经注入的 resolver,不取 token)。
 	if cfg.DNSProviderID != "" {
 		if err := s.validateDNSProviderRef(ctx, cfg.DNSProviderID); err != nil {
@@ -523,8 +579,8 @@ func (s *service) Update(ctx context.Context, id string, in UpdateInput) (*Route
 		}
 	}
 
-	// 5) 持久化(config JSON 含 bcrypt 哈希)。
-	if err := s.store.updateConfig(ctx, id, container, port, cfg); err != nil {
+	// 5) 持久化(config JSON 含 bcrypt 哈希 + 证书模式;一条 UPDATE 原子落库)。
+	if err := s.store.updateConfig(ctx, id, tlsMode, container, port, cfg); err != nil {
 		return nil, err
 	}
 
@@ -602,7 +658,7 @@ func (s *service) RemoveCaddy(ctx context.Context, serverID string) error {
 func (s *service) ensureAndApply(ctx context.Context, serverID, container string) error {
 	// 取本主机所有 enabled 路由声明的 TCP 透传监听端口 —— ensureCaddy 据此确保 Caddy 容器
 	// 对宿主发布这些端口(缺则带「既有映射 ∪ TCP 端口」重建),否则 layer4 监听不可达。
-	if err := ensureCaddy(ctx, s.tg, serverID, s.tcpPortsForServer(ctx, serverID)); err != nil {
+	if err := ensureCaddy(ctx, s.tg, serverID, s.tcpPortsForServer(ctx, serverID), s.hasAcmeRoute(ctx, serverID)); err != nil {
 		return err
 	}
 	if container != "" {
@@ -631,6 +687,21 @@ func (s *service) tcpPortsForServer(ctx context.Context, serverID string) []int 
 	return ports
 }
 
+// hasAcmeRoute 报告该主机是否已有 enabled 的 tls_mode=acme.sh 路由 —— 决定 ensureCaddy 是否
+// 需要校验证书目录挂载。查询失败按「无」处理(纯 auto 主机不因此被迫重建容器)。
+func (s *service) hasAcmeRoute(ctx context.Context, serverID string) bool {
+	routes, err := s.store.listEnabledForServer(ctx, serverID)
+	if err != nil {
+		return false
+	}
+	for _, r := range routes {
+		if normalizeTLSMode(r.TLSMode) == TLSModeAcmeSh {
+			return true
+		}
+	}
+	return false
+}
+
 // PrepareCaddy 显式部署反代环境(ensureCaddy)而无需先绑域名,返回部署后的 CaddyStatus。
 func (s *service) PrepareCaddy(ctx context.Context, serverID string) (*CaddyStatus, error) {
 	serverID = strings.TrimSpace(serverID)
@@ -638,7 +709,7 @@ func (s *service) PrepareCaddy(ctx context.Context, serverID string) (*CaddyStat
 		return nil, ErrEmptyServerID
 	}
 	// 显式部署:按本主机既有 TCP 路由(若有)发布端口;无则 80/443 起。
-	if err := ensureCaddy(ctx, s.tg, serverID, s.tcpPortsForServer(ctx, serverID)); err != nil {
+	if err := ensureCaddy(ctx, s.tg, serverID, s.tcpPortsForServer(ctx, serverID), s.hasAcmeRoute(ctx, serverID)); err != nil {
 		return nil, err
 	}
 	return s.CaddyStatus(ctx, serverID)
@@ -662,6 +733,20 @@ func normalizeUpstreamKind(kind string) string {
 	return kind
 }
 
+// normalizeTLSMode 把空串归一化为 "auto"(向后兼容 R1 老路由);其余小写去空白后交校验判定。
+func normalizeTLSMode(mode string) string {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return TLSModeAuto
+	}
+	return mode
+}
+
+// validTLSMode 报告 mode 是否为白名单枚举(auto | acme.sh)。
+func validTLSMode(mode string) bool {
+	return mode == TLSModeAuto || mode == TLSModeAcmeSh
+}
+
 // upstreamHostRe 校验 address 上游的 FQDN(同 domainRe 但此处单列以便阅读);IP 走 net.ParseIP。
 var upstreamHostRe = domainRe
 
@@ -673,8 +758,112 @@ func (s *service) apply(ctx context.Context, serverID string) error {
 	if err != nil {
 		return err
 	}
+	// acme.sh 路由:先补齐缺失的证书,再探明哪些证书文件确实在位 —— Caddy 对显式 tls 引用的文件
+	// 在加载期即读取,引用不存在的文件会让 reload 直接失败,故只有确证在位的才渲染 tls 行。
+	acmeReady := s.ensureAcmeCerts(ctx, serverID, routes)
 	creds := s.resolveDNSCreds(ctx, routes)
-	return applyCaddyfile(ctx, s.tg, serverID, renderCaddyfile(routes, creds))
+	return applyCaddyfile(ctx, s.tg, serverID, renderCaddyfile(routes, creds, acmeReady))
+}
+
+// ensureAcmeCerts 保证该主机上 tls_mode=acme.sh 的 enabled 路由都已有证书文件:缺失的现签一次
+// (best-effort:单个失败不阻断其它路由、不阻断 apply),返回「证书确实在位」的目录名集合。
+//
+// 限速:不 --force —— acme.sh 在证书仍在有效期时直接跳过,避免反复重签触发 Let's Encrypt 速率限制。
+// 失败原因落到该路由的 cert_detail,用户在证书总览里能看到人话原因并可手动重试。
+func (s *service) ensureAcmeCerts(ctx context.Context, serverID string, routes []Route) map[string]bool {
+	dirs := make([]string, 0, len(routes))
+	for _, r := range routes {
+		if normalizeTLSMode(r.TLSMode) == TLSModeAcmeSh {
+			dirs = append(dirs, acmeCertDirName(r.Domain))
+		}
+	}
+	if len(dirs) == 0 {
+		return nil
+	}
+	ready := acmeCertsReady(ctx, s.tg, serverID, dirs)
+	for _, r := range routes {
+		if normalizeTLSMode(r.TLSMode) != TLSModeAcmeSh {
+			continue
+		}
+		dir := acmeCertDirName(r.Domain)
+		if ready[dir] {
+			continue
+		}
+		pt, token, cerr := s.resolveAcmeCreds(ctx, r)
+		if cerr != nil {
+			_ = s.store.setCertStatus(ctx, r.ID, CertStatusFailed, cerr.Error())
+			continue
+		}
+		if ierr := issueAcmeCert(ctx, s.tg, serverID, r.Domain, r.Config.Aliases, pt, token); ierr != nil {
+			_ = s.store.setCertStatus(ctx, r.ID, CertStatusFailed, acmeFailDetail(ierr))
+			continue
+		}
+		ready[dir] = true
+	}
+	return ready
+}
+
+// resolveAcmeCreds 取某 acme.sh 路由绑定的 DNS 提供商 (类型, 凭据明文)。
+// resolver 未注入 / 未绑提供商 / 提供商不存在 / vault 取不到凭据 → error(绝不含凭据明文)。
+func (s *service) resolveAcmeCreds(ctx context.Context, r Route) (string, string, error) {
+	if s.dns == nil {
+		return "", "", ErrInvalidDNSProvider
+	}
+	pid := strings.TrimSpace(r.Config.DNSProviderID)
+	if pid == "" {
+		return "", "", ErrAcmeNeedsDNS
+	}
+	pt, token, ok, err := s.dns.Resolve(ctx, pid)
+	if err != nil {
+		return "", "", err
+	}
+	if !ok || pt == "" || token == "" {
+		return "", "", ErrInvalidDNSProvider
+	}
+	return pt, token, nil
+}
+
+// IssueCert 在目标主机上经 acme.sh 签发/续期该路由的证书,并回写 cert_status(证书总览的「签发 / 续期」)。
+//
+// 失败语义:acme.sh 执行失败**不是** API 错误,而是运维可读的状态 —— 落成 cert_status=failed +
+// 人话 detail 并返回路由(与 auto 模式的探测结论同性质);真正的配置错误(路由不存在 / 模式不是
+// acme.sh / 未绑 DNS 提供商 / vault 取不到凭据 / SSH 不可达)才返回 error。
+func (s *service) IssueCert(ctx context.Context, id string) (*Route, error) {
+	r, err := s.store.get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if normalizeTLSMode(r.TLSMode) != TLSModeAcmeSh {
+		return nil, ErrInvalidTLSMode
+	}
+	pt, token, err := s.resolveAcmeCreds(ctx, *r)
+	if err != nil {
+		return nil, err
+	}
+	if ierr := issueAcmeCert(ctx, s.tg, r.ServerID, r.Domain, r.Config.Aliases, pt, token); ierr != nil {
+		if !errors.Is(ierr, ErrAcmeIssue) {
+			return nil, ierr // 传输层/SSH 错误:真正的失败,交给上层映射 502/503
+		}
+		if serr := s.store.setCertStatus(ctx, id, CertStatusFailed, acmeFailDetail(ierr)); serr != nil {
+			return nil, serr
+		}
+		return s.store.get(ctx, id)
+	}
+	// 签发成功 → 重新下发:首次签发前渲染刻意不写 tls 行(文件不存在会让 Caddy 加载失败),
+	// 现在文件到位了,补上显式 tls 并 reload,证书即刻生效。
+	if r.Enabled {
+		if aerr := s.apply(ctx, r.ServerID); aerr != nil {
+			return nil, aerr
+		}
+	}
+	res, ok := s.probeAcmeCertViaSSH(ctx, r.ServerID, r.Domain)
+	if !ok {
+		res = ProbeResult{Status: CertStatusPending, Detail: "证书已签发,等待 Caddy 装载生效"}
+	}
+	if serr := s.store.setCertStatus(ctx, id, res.Status, res.Detail); serr != nil {
+		return nil, serr
+	}
+	return s.store.get(ctx, id)
 }
 
 // resolveDNSCreds 为这批路由里引用的每个 DNS 提供商取一次 (类型, token)。
@@ -779,6 +968,14 @@ func validateCreate(in CreateInput) error {
 	}
 	if err := validateUpstream(in.UpstreamKind, in.UpstreamContainer, in.UpstreamPort); err != nil {
 		return err
+	}
+	mode := normalizeTLSMode(in.TLSMode)
+	if !validTLSMode(mode) {
+		return ErrInvalidTLSMode
+	}
+	// acme.sh 模式下 Caddy 仍占着 80/443,HTTP-01 无从校验 → 必须走 DNS-01 → 必须绑 DNS 提供商。
+	if mode == TLSModeAcmeSh && strings.TrimSpace(in.DNSProviderID) == "" {
+		return ErrAcmeNeedsDNS
 	}
 	return nil
 }

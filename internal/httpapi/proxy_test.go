@@ -30,16 +30,33 @@ type stubProxyService struct {
 	prepareID     string
 	prepareStatus *proxy.CaddyStatus
 	prepareErr    error
+
+	createIn    proxy.CreateInput
+	createRoute proxy.Route
+
+	issueCertID    string
+	issueCertRoute proxy.Route
+	issueCertErr   error
 }
 
 func (s *stubProxyService) List(context.Context, string) ([]proxy.Route, error) { return nil, nil }
-func (s *stubProxyService) Create(context.Context, proxy.CreateInput) (*proxy.Route, error) {
-	return nil, nil
+func (s *stubProxyService) Create(_ context.Context, in proxy.CreateInput) (*proxy.Route, error) {
+	s.createIn = in
+	r := s.createRoute
+	return &r, nil
 }
 func (s *stubProxyService) Delete(context.Context, string) error           { return nil }
 func (s *stubProxyService) SetEnabled(context.Context, string, bool) error { return nil }
 func (s *stubProxyService) RefreshStatus(context.Context, string) (*proxy.Route, error) {
 	return nil, nil
+}
+func (s *stubProxyService) IssueCert(_ context.Context, id string) (*proxy.Route, error) {
+	s.issueCertID = id
+	if s.issueCertErr != nil {
+		return nil, s.issueCertErr
+	}
+	r := s.issueCertRoute
+	return &r, nil
 }
 func (s *stubProxyService) Update(_ context.Context, id string, in proxy.UpdateInput) (*proxy.Route, error) {
 	s.updateID = id
@@ -425,5 +442,105 @@ func TestProxyCaddy_Unconfigured503(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want 503", resp.StatusCode)
+	}
+}
+
+// TestProxyCreate_TLSModePassthrough 验证 POST /api/proxy/routes 的 tlsMode 透传到领域层并在响应里回显。
+func TestProxyCreate_TLSModePassthrough(t *testing.T) {
+	now := time.Now().UTC()
+	px := &stubProxyService{
+		createRoute: proxy.Route{
+			ID: "r-new", ServerID: "srv-1", Domain: "app.example.com",
+			UpstreamContainer: "web", UpstreamPort: 8080, TLSMode: proxy.TLSModeAcmeSh,
+			Enabled: true, CertStatus: "pending", CreatedAt: now, UpdatedAt: now,
+		},
+	}
+	srv, client, csrf := setupProxyServer(t, px)
+
+	body := `{"serverId":"srv-1","domain":"app.example.com","upstreamContainer":"web","upstreamPort":8080,"dnsProviderId":"prov-1","tlsMode":"acme.sh"}`
+	resp := doJSON(t, client, http.MethodPost, srv.URL+"/api/proxy/routes", csrf, body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 201 (%s)", resp.StatusCode, raw)
+	}
+	if px.createIn.TLSMode != proxy.TLSModeAcmeSh {
+		t.Fatalf("tlsMode 应透传到领域层, got %q", px.createIn.TLSMode)
+	}
+	if px.createIn.DNSProviderID != "prov-1" {
+		t.Fatalf("dnsProviderId 应透传, got %q", px.createIn.DNSProviderID)
+	}
+	var dto proxyRouteDTO
+	raw, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(raw, &dto); err != nil {
+		t.Fatalf("unmarshal: %v (%s)", err, raw)
+	}
+	if dto.TLSMode != proxy.TLSModeAcmeSh {
+		t.Fatalf("响应应回显 tlsMode=acme.sh, got %q", dto.TLSMode)
+	}
+}
+
+// TestProxyUpdate_TLSModePassthrough 验证 PUT 的 tlsMode 透传(空串 = 保持不变,由领域层判定)。
+func TestProxyUpdate_TLSModePassthrough(t *testing.T) {
+	now := time.Now().UTC()
+	px := &stubProxyService{
+		updateRoute: proxy.Route{
+			ID: "r1", ServerID: "srv-1", Domain: "u.example.com",
+			UpstreamContainer: "web", UpstreamPort: 8080, TLSMode: proxy.TLSModeAcmeSh,
+			Enabled: true, CertStatus: "pending", CreatedAt: now, UpdatedAt: now,
+		},
+	}
+	srv, client, csrf := setupProxyServer(t, px)
+
+	body := `{"upstreamContainer":"web","upstreamPort":8080,"tlsMode":"acme.sh","config":{"dnsProviderId":"prov-1"}}`
+	resp := doJSON(t, client, http.MethodPut, srv.URL+"/api/proxy/routes/r1", csrf, body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200 (%s)", resp.StatusCode, raw)
+	}
+	if px.updateIn.TLSMode != proxy.TLSModeAcmeSh {
+		t.Fatalf("tlsMode 应透传到领域层, got %q", px.updateIn.TLSMode)
+	}
+}
+
+// TestProxyCert_IssueAndReject 验证 POST /api/proxy/routes/{id}/cert:
+// acme.sh 路由 → 调 IssueCert 并 200 返回路由;auto 路由 → 400(invalid_route)。
+func TestProxyCert_IssueAndReject(t *testing.T) {
+	now := time.Now().UTC()
+	issued := proxy.Route{
+		ID: "r1", ServerID: "srv-1", Domain: "u.example.com",
+		UpstreamContainer: "web", UpstreamPort: 8080, TLSMode: proxy.TLSModeAcmeSh,
+		Enabled: true, CertStatus: proxy.CertStatusIssued, CertDetail: "已由 Let's Encrypt 签发,到期 2026-12-01",
+		CreatedAt: now, UpdatedAt: now,
+	}
+	px := &stubProxyService{issueCertRoute: issued}
+	srv, client, csrf := setupProxyServer(t, px)
+
+	resp := doJSON(t, client, http.MethodPost, srv.URL+"/api/proxy/routes/r1/cert", csrf, "")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status = %d, want 200 (%s)", resp.StatusCode, raw)
+	}
+	if px.issueCertID != "r1" {
+		t.Fatalf("应以路由 id 调 IssueCert, got %q", px.issueCertID)
+	}
+	var dto proxyRouteDTO
+	raw, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(raw, &dto); err != nil {
+		t.Fatalf("unmarshal: %v (%s)", err, raw)
+	}
+	if dto.CertStatus != proxy.CertStatusIssued {
+		t.Fatalf("应回传签发后的状态, got %q", dto.CertStatus)
+	}
+
+	// auto 模式:Caddy 自管证书,签发入口应 400。
+	px2 := &stubProxyService{issueCertErr: proxy.ErrInvalidTLSMode}
+	srv2, client2, csrf2 := setupProxyServer(t, px2)
+	resp2 := doJSON(t, client2, http.MethodPost, srv2.URL+"/api/proxy/routes/r1/cert", csrf2, "")
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusBadRequest {
+		t.Fatalf("auto 模式签发应 400, got %d", resp2.StatusCode)
 	}
 }

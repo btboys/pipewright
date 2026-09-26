@@ -15,10 +15,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { NIcon } from 'naive-ui'
-import { Lock, LockOpen, AlertTriangle, Refresh, Server, ExternalLink, ListCheck } from '@vicons/tabler'
+import { Lock, LockOpen, AlertTriangle, Refresh, Server, ExternalLink, ListCheck, Certificate } from '@vicons/tabler'
 import {
   getProxyOverview,
   refreshProxyRoute,
+  issueProxyCert,
   type ProxyRouteOverview,
   type CertStatus,
 } from '../api/reverseProxy'
@@ -181,6 +182,34 @@ async function refreshRow(d: DerivedRow): Promise<void> {
   }
 }
 
+// acme.sh 模式的「签发 / 续期」:在目标主机上跑 acme.sh(DNS-01)。acme.sh 在证书仍在有效期时直接
+// 跳过,可安全重复点按;签发失败以路由状态回报(certStatus=failed + 人话 certDetail)。
+async function issueRow(d: DerivedRow): Promise<void> {
+  const r = d.route
+  if (isBusy(r.id)) return
+  busy.value = new Set(busy.value).add(r.id)
+  try {
+    const updated = await issueProxyCert(r.id)
+    rows.value = rows.value.map((x) => (x.id === r.id ? { ...x, ...updated } : x))
+    if (updated.certStatus === 'failed') {
+      toast.error(t('proxyOverview.issueCertFail'), { detail: updated.certDetail || r.domain })
+    } else {
+      toast.success(t('proxyOverview.issueCertDone'), { detail: updated.domain })
+    }
+  } catch (err) {
+    toast.error(t('proxyOverview.issueCertFail'), {
+      detail:
+        err instanceof HttpError
+          ? (err.apiError?.message ?? t('proxyOverview.errReq', { status: err.status }))
+          : t('proxyOverview.errNetwork'),
+    })
+  } finally {
+    const next = new Set(busy.value)
+    next.delete(r.id)
+    busy.value = next
+  }
+}
+
 function gotoHost(d: DerivedRow): void {
   // 跳容器页(每台主机一张卡有「域名/反代」tab)。serverId 经 query 供高亮。
   void router.push({ name: 'containers', query: { server: d.route.serverId } })
@@ -330,6 +359,7 @@ function expiryText(d: DerivedRow): string {
                     <span v-for="a in d.route.config.aliases" :key="a" class="dom__alias mono">{{ a }}</span>
                   </div>
                   <span v-if="!d.route.enabled" class="dom__off">{{ t('proxyOverview.disabled') }}</span>
+                  <span v-if="d.route.tlsMode === 'acme.sh'" class="dom__tls">{{ t('proxyOverview.modeAcmeSh') }}</span>
                 </td>
                 <td class="cell-host">{{ d.route.serverName }}</td>
                 <td class="cell-up mono">{{ d.route.upstreamContainer }}:{{ d.route.upstreamPort }}</td>
@@ -346,6 +376,15 @@ function expiryText(d: DerivedRow): string {
                 <td class="cell-detail mono" :title="d.route.certDetail">{{ d.route.certDetail || '—' }}</td>
                 <td class="cell-expiry" :class="{ 'cell-expiry--hot': d.expiring }">{{ expiryText(d) }}</td>
                 <td class="cell-act">
+                  <button
+                    v-if="d.route.tlsMode === 'acme.sh'"
+                    class="rowbtn"
+                    :disabled="isBusy(d.route.id)"
+                    :title="t('proxyOverview.issueCertTitle')"
+                    @click="issueRow(d)"
+                  >
+                    <NIcon :size="14"><Certificate /></NIcon>
+                  </button>
                   <button class="rowbtn" :disabled="isBusy(d.route.id)" :title="t('proxyOverview.refreshRowTitle')" @click="refreshRow(d)">
                     <NIcon :size="14"><Refresh /></NIcon>
                   </button>
@@ -371,6 +410,7 @@ function expiryText(d: DerivedRow): string {
                   <span v-for="a in d.route.config.aliases" :key="a" class="dom__alias mono">{{ a }}</span>
                 </div>
                 <span v-if="!d.route.enabled" class="dom__off">{{ t('proxyOverview.disabled') }}</span>
+                <span v-if="d.route.tlsMode === 'acme.sh'" class="dom__tls">{{ t('proxyOverview.modeAcmeSh') }}</span>
               </td>
               <td class="cell-host">{{ d.route.serverName }}</td>
               <td class="cell-up mono">{{ d.route.upstreamContainer }}:{{ d.route.upstreamPort }}</td>
@@ -387,6 +427,15 @@ function expiryText(d: DerivedRow): string {
               <td class="cell-detail mono" :title="d.route.certDetail">{{ d.route.certDetail || '—' }}</td>
               <td class="cell-expiry" :class="{ 'cell-expiry--hot': d.expiring }">{{ expiryText(d) }}</td>
               <td class="cell-act">
+                <button
+                  v-if="d.route.tlsMode === 'acme.sh'"
+                  class="rowbtn"
+                  :disabled="isBusy(d.route.id)"
+                  :title="t('proxyOverview.issueCertTitle')"
+                  @click="issueRow(d)"
+                >
+                  <NIcon :size="14"><Certificate /></NIcon>
+                </button>
                 <button class="rowbtn" :disabled="isBusy(d.route.id)" :title="t('proxyOverview.refreshRowTitle')" @click="refreshRow(d)">
                   <NIcon :size="14"><Refresh /></NIcon>
                 </button>
@@ -704,6 +753,18 @@ function expiryText(d: DerivedRow): string {
   padding: 1px 7px;
   border-radius: var(--rounded-full);
   background: var(--color-inset);
+  color: var(--color-faint);
+}
+/* R5:证书来源标识(acme.sh 模式) */
+.dom__tls {
+  display: inline-block;
+  margin-top: 5px;
+  margin-left: 6px;
+  font-size: var(--text-micro);
+  font-family: var(--font-mono, monospace);
+  padding: 1px 7px;
+  border-radius: var(--rounded-full);
+  border: 1px solid var(--color-border);
   color: var(--color-faint);
 }
 .cell-host {

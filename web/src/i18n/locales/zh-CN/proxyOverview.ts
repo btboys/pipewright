@@ -1,7 +1,7 @@
 export default {
   eyebrow: '运维大盘',
   title: '证书总览',
-  subtitle: '跨主机、跨域名的反代证书集中成一张表 —— 状态、有效期、到期一眼看清。续期由 Caddy 自动完成,这里只为安心确认。',
+  subtitle: '跨主机、跨域名的反代证书集中成一张表 —— 状态、有效期、到期一眼看清。Caddy 自动签发,或由主机上的 acme.sh 签发(可在此签发 / 续期),这里只为一眼确认。',
   // 摘要卡
   summaryAria: '证书摘要',
   cardTotal: '路由总数',
@@ -30,6 +30,10 @@ export default {
   statusPending: '申请中',
   statusFailed: '失败',
   disabled: '已停用',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: '签发 / 续期该证书(acme.sh)',
+  issueCertDone: '已下发签发 / 续期',
+  issueCertFail: '签发失败',
   // 到期文案
   daysLeft: '{n} 天后',
   expiresToday: '今天到期',
@@ -48,5 +52,5 @@ export default {
   errLoad: '加载失败({status})。',
   errReq: '请求失败({status})。',
   errNetwork: '网络错误,请稍后重试。',
-  footNote: '续期由 Caddy 在到期前自动完成,无需手动操作 —— 这张表只是让你随时确认健康状态。',
+  footNote: 'auto 模式由 Caddy 在到期前自动续期;acme.sh 模式由主机上的 acme.sh 按自己的计划续期 —— 也可在此手动触发。这张表只是让你随时确认健康状态。',
 }

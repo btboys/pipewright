@@ -1,6 +1,6 @@
 export default {
   // Cabecera
-  lede: 'Vincula un dominio: Caddy emite y renueva automáticamente un certificado de Let\'s Encrypt.',
+  lede: 'Vincula un dominio: Caddy emite y renueva automáticamente un certificado de Let\'s Encrypt, o delega la emisión en acme.sh del host (por ruta, en «Avanzado»).',
   hostAddress: 'Dirección del host',
   hostIpTitle: 'Apunta el registro A del dominio a esta dirección',
   // Formulario de vinculación
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: 'Emitido · válido',
   tlsLabel: 'TLS',
   tlsAuto: 'Automático (Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh (emitido en el host vía DNS-01)',
+  tlsAcmeShHint: 'Emitido y renovado por acme.sh en el host destino (DNS-01).',
+  issueCertTitle: 'Emitir / renovar este certificado (acme.sh)',
+  issueCertDone: 'Emisión / renovación lanzada',
+  issueCertFail: 'Falló la emisión',
   // Guía de DNS (fallido)
   dnsGuide: 'Apunta el registro A de este dominio al host {host} y pulsa Reintentar.',
   retry: 'Reintentar',
@@ -128,6 +133,13 @@ export default {
     aliasDup: 'Ese alias ya está añadido.',
     removeAlias: 'Quitar alias {v}',
     // R3: proveedor DNS + comodín (DNS-01)
+    certTitle: 'Origen del certificado',
+    certLede: 'De dónde viene el certificado TLS: Caddy lo emite automáticamente, o acme.sh en el host (DNS-01).',
+    certAuto: "Caddy automático (Let's Encrypt)",
+    certAcmeSh: 'acme.sh en el host',
+    certAutoHint: 'Caddy solicita y renueva el certificado por sí mismo. No hace falta configuración adicional.',
+    certAcmeShHint: 'acme.sh en el host emite el certificado vía DNS-01; Caddy solo lo carga. La renovación sigue el calendario de acme.sh, así que también funciona con una imagen caddy:2 estándar.',
+    certAcmeShNeedsDns: 'El modo acme.sh requiere un proveedor DNS: Caddy sigue ocupando 80/443, así que solo es posible la validación DNS-01.',
     dnsTitle: 'Proveedor DNS (DNS-01 / comodín)',
     dnsLede: 'Adjunta un proveedor DNS para usar validación DNS-01, lo que habilita dominios comodín (*.example.com).',
     dnsProviderLabel: 'Proveedor DNS',

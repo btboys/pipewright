@@ -1,6 +1,6 @@
 export default {
   // 頭部
-  lede: '綁定網域,Caddy 經 Let\'s Encrypt 自動簽發並續期憑證。',
+  lede: '綁定網域,Caddy 經 Let\'s Encrypt 自動簽發並續期憑證;也可在「進階設定」改為由主機上的 acme.sh 簽發。',
   hostAddress: '本機位址',
   hostIpTitle: '把網域的 A 記錄指到此位址',
   // 綁定表單
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: '已簽發,有效期內',
   tlsLabel: 'TLS',
   tlsAuto: '自動(Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh(主機上經 DNS-01 簽發)',
+  tlsAcmeShHint: '由目標主機上的 acme.sh 簽發 / 續期(走 DNS-01)。',
+  issueCertTitle: '簽發 / 續期該憑證(acme.sh)',
+  issueCertDone: '已下發簽發 / 續期',
+  issueCertFail: '簽發失敗',
   // DNS 指引(失敗態)
   dnsGuide: '把該網域的 A 記錄指到本機 {host},再點「重試」。',
   retry: '重試',
@@ -126,6 +131,13 @@ export default {
     aliasIsPrimary: '該網域已是主網域。',
     aliasDup: '該別名已新增。',
     removeAlias: '移除別名 {v}',
+    certTitle: '憑證來源',
+    certLede: 'TLS 憑證從哪裡來:Caddy 自動簽發,或由目標主機上的 acme.sh 簽發(走 DNS-01)。',
+    certAuto: "Caddy 自動簽發(Let's Encrypt)",
+    certAcmeSh: '主機上的 acme.sh',
+    certAutoHint: '由 Caddy 自行申請並續期憑證,無需額外設定。',
+    certAcmeShHint: '憑證由目標主機上的 acme.sh 經 DNS-01 簽發,Caddy 只負責載入;續期依 acme.sh 自己的排程執行。用原版 caddy:2 映像也能簽萬用字元。',
+    certAcmeShNeedsDns: 'acme.sh 模式必須掛接 DNS 供應商:Caddy 仍佔著 80/443,只能走 DNS-01 驗證。',
     dnsTitle: 'DNS 供應商(DNS-01 / 萬用字元)',
     dnsLede: '掛接一個 DNS 供應商即可走 DNS-01 驗證,從而支援萬用字元網域(*.example.com)。',
     dnsProviderLabel: 'DNS 供應商',

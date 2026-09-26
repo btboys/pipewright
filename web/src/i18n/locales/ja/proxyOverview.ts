@@ -1,8 +1,7 @@
 export default {
   eyebrow: '運用ダッシュボード',
   title: '証明書一覧',
-  subtitle:
-    'すべてのホスト・ドメインのリバースプロキシ証明書を 1 つの表に集約 —— 状態・有効期限・期限切れが一目でわかります。更新は Caddy が自動で行うため、これは確認用です。',
+  subtitle: 'すべてのホスト・ドメインのリバースプロキシ証明書を 1 つの表に集約 —— 状態・有効期限・期限切れが一目でわかります。Caddy が自動発行するか、ホスト上の acme.sh が発行します(ここから発行 / 更新も可能)。',
   summaryAria: '証明書サマリー',
   cardTotal: 'ルート総数',
   cardIssued: '発行済み',
@@ -27,6 +26,10 @@ export default {
   statusPending: '申請中',
   statusFailed: '失敗',
   disabled: '無効',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: 'この証明書を発行 / 更新(acme.sh)',
+  issueCertDone: '発行 / 更新を実行しました',
+  issueCertFail: '発行に失敗しました',
   daysLeft: '残り {n} 日',
   expiresToday: '本日期限切れ',
   expiredAgo: '{n} 日前に期限切れ',
@@ -43,6 +46,5 @@ export default {
   errLoad: '読み込みに失敗しました（{status}）。',
   errReq: 'リクエストに失敗しました（{status}）。',
   errNetwork: 'ネットワークエラーです。後でもう一度お試しください。',
-  footNote:
-    '更新は期限前に Caddy が自動で行うため、手動操作は不要です。この表はいつでも健全性を確認するためのものです。',
+  footNote: 'auto モードでは Caddy が期限前に自動更新し、acme.sh モードではホスト上の acme.sh が独自のスケジュールで更新します(ここから手動実行も可能)。この表はいつでも健全性を確認するためのものです。',
 }

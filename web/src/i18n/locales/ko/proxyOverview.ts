@@ -1,8 +1,7 @@
 export default {
   eyebrow: '운영 대시보드',
   title: '인증서 개요',
-  subtitle:
-    '모든 호스트·도메인의 리버스 프록시 인증서를 하나의 표로 집계 —— 상태·유효 기간·만료를 한눈에 확인합니다. 갱신은 Caddy가 자동으로 하며, 이 표는 확인용입니다.',
+  subtitle: '모든 호스트·도메인의 리버스 프록시 인증서를 하나의 표로 집계 —— 상태·유효 기간·만료를 한눈에 확인합니다. Caddy가 자동 발급하거나 호스트의 acme.sh가 발급합니다(여기서 발급 / 갱신도 가능).',
   summaryAria: '인증서 요약',
   cardTotal: '전체 라우트',
   cardIssued: '발급됨',
@@ -27,6 +26,10 @@ export default {
   statusPending: '발급 중',
   statusFailed: '실패',
   disabled: '비활성화됨',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: '이 인증서 발급 / 갱신(acme.sh)',
+  issueCertDone: '발급 / 갱신을 실행했습니다',
+  issueCertFail: '발급 실패',
   daysLeft: '{n}일 남음',
   expiresToday: '오늘 만료',
   expiredAgo: '{n}일 전 만료됨',
@@ -43,6 +46,5 @@ export default {
   errLoad: '불러오기 실패({status}).',
   errReq: '요청 실패({status}).',
   errNetwork: '네트워크 오류입니다. 잠시 후 다시 시도하세요.',
-  footNote:
-    '갱신은 만료 전 Caddy가 자동으로 처리하므로 수동 작업이 필요 없습니다. 이 표는 언제든 상태를 확인하기 위한 것입니다.',
+  footNote: 'auto 모드에서는 Caddy가 만료 전 자동 갱신하고, acme.sh 모드에서는 호스트의 acme.sh가 자체 일정으로 갱신합니다(여기서 수동 실행도 가능). 이 표는 언제든 상태를 확인하기 위한 것입니다.',
 }

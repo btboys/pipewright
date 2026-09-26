@@ -28,12 +28,14 @@ import {
   World,
   Server,
   CircleX,
+  Certificate,
 } from '@vicons/tabler'
 import {
   listProxyRoutes,
   createProxyRoute,
   setProxyRouteEnabled,
   refreshProxyRoute,
+  issueProxyCert,
   deleteProxyRoute,
   getCaddyStatus,
   prepareCaddyEnv,
@@ -410,6 +412,33 @@ async function refresh(r: ProxyRoute): Promise<void> {
   }
 }
 
+// acme.sh 模式的「签发 / 续期」:在目标主机上跑 acme.sh(DNS-01)。acme.sh 在证书仍在有效期时
+// 直接跳过,故可安全重复点按(不会触发 Let's Encrypt 速率限制);签发失败以路由状态回报,不抛错。
+async function issueCert(r: ProxyRoute): Promise<void> {
+  if (isBusy(r.id)) return
+  setBusy(r.id, true)
+  try {
+    const updated = await issueProxyCert(r.id)
+    replaceRoute(updated)
+    if (updated.certStatus === 'failed') {
+      toast.error(t('reverseProxy.issueCertFail'), {
+        detail: updated.certDetail || t('reverseProxy.errNetwork'),
+      })
+    } else {
+      toast.success(t('reverseProxy.issueCertDone'), { detail: updated.domain })
+    }
+  } catch (err) {
+    toast.error(t('reverseProxy.issueCertFail'), {
+      detail:
+        err instanceof HttpError
+          ? (err.apiError?.message ?? t('reverseProxy.errReq', { status: err.status }))
+          : t('reverseProxy.errNetwork'),
+    })
+  } finally {
+    setBusy(r.id, false)
+  }
+}
+
 async function removeRoute(r: ProxyRoute): Promise<void> {
   const ok = await confirm.open({
     title: t('reverseProxy.removeTitle', { domain: r.domain }),
@@ -686,6 +715,26 @@ function statusLabel(s: ProxyRoute['certStatus']): string {
             {{ statusLabel(r.certStatus) }}
           </span>
 
+          <!-- R5:证书来源标识 + acme.sh 模式的「签发 / 续期」入口 -->
+          <span
+            v-if="r.tlsMode === 'acme.sh'"
+            class="route__tls"
+            :title="t('reverseProxy.tlsAcmeShHint')"
+          >
+            <NIcon :size="11"><Certificate /></NIcon>
+            acme.sh
+          </span>
+          <button
+            v-if="r.tlsMode === 'acme.sh'"
+            class="route__del route__cert"
+            :disabled="isBusy(r.id)"
+            :title="t('reverseProxy.issueCertTitle')"
+            :aria-label="t('reverseProxy.issueCertTitle')"
+            @click="issueCert(r)"
+          >
+            <NIcon :size="15"><Certificate /></NIcon>
+          </button>
+
           <button
             class="route__toggle"
             :class="{ 'route__toggle--on': r.enabled }"
@@ -719,7 +768,9 @@ function statusLabel(s: ProxyRoute['certStatus']): string {
           </div>
           <div class="cert__row">
             <span class="cert__k">{{ t('reverseProxy.tlsLabel') }}</span>
-            <span class="cert__v mono">{{ t('reverseProxy.tlsAuto') }}</span>
+            <span class="cert__v mono">{{
+              r.tlsMode === 'acme.sh' ? t('reverseProxy.tlsAcmeSh') : t('reverseProxy.tlsAuto')
+            }}</span>
           </div>
         </div>
 
@@ -1285,6 +1336,25 @@ function statusLabel(s: ProxyRoute['certStatus']): string {
 .route__del:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* R5:证书来源标识(acme.sh)与「签发 / 续期」按钮 */
+.route__tls {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: var(--text-micro);
+  font-family: var(--font-mono, monospace);
+  color: var(--color-faint);
+  border: 1px solid var(--color-border);
+  border-radius: var(--rounded-full);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.route__cert:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 /* 状态行 */

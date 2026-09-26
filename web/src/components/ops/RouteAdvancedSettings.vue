@@ -26,6 +26,7 @@ import {
   type Upstream,
   type LbPolicy,
   type TcpPassthrough,
+  type TlsMode,
 } from '../../api/reverseProxy'
 import { listDnsProviders, type DnsProvider } from '../../api/dnsProviders'
 import { HttpError } from '../../api/http'
@@ -60,6 +61,8 @@ const redirects = ref<Redirect[]>([])
 // R3:DNS 提供商挂接(空=不挂接,仅 HTTP-01)+ 路径路由
 const dnsProviderId = ref('')
 const pathRules = ref<PathRule[]>([])
+// 证书来源:auto(Caddy 自签 ACME)| acme.sh(主机上 acme.sh 经 DNS-01 签发,Caddy 只加载)
+const tlsMode = ref<TlsMode>('auto')
 // R4 / E4.2:负载均衡(额外上游 + 策略 + 健康检查);E4.3:gRPC(h2c)+ TCP 透传(L4)
 const upstreams = ref<Upstream[]>([])
 const lbPolicy = ref<LbPolicy>('round_robin')
@@ -85,6 +88,7 @@ function resetFromRoute(): void {
   ipDeny.value = [...c.ipDeny]
   redirects.value = c.redirects.map((r) => ({ ...r }))
   dnsProviderId.value = c.dnsProviderId ?? ''
+  tlsMode.value = props.route.tlsMode
   pathRules.value = (c.pathRules ?? []).map((r) => ({ ...r }))
   upstreams.value = (c.upstreams ?? []).map((u) => ({ ...u }))
   lbPolicy.value = c.lbPolicy ?? 'round_robin'
@@ -116,6 +120,10 @@ const selectedProvider = computed(() =>
 )
 // 挂接了 DNS 提供商 → 允许通配符域名/别名。
 const wildcardAllowed = computed(() => dnsProviderId.value.length > 0)
+
+// acme.sh 模式必须挂 DNS 提供商:Caddy 仍占着 80/443,acme.sh 的 HTTP-01 无从校验,只能走 DNS-01。
+// 后端同样会拒(ErrAcmeNeedsDNS),这里提前挡住并给出人话提示。
+const acmeNeedsDns = computed(() => tlsMode.value === 'acme.sh' && dnsProviderId.value.length === 0)
 
 // 路由对象(尤其 config)变化时重置缓冲;首次也跑一遍。
 watch(() => props.route, resetFromRoute, { immediate: true, deep: true })
@@ -304,7 +312,8 @@ const canSave = computed(
     !authNeedsPassword.value &&
     !pathRuleIncomplete.value &&
     !upstreamIncomplete.value &&
-    !tcpIncomplete.value,
+    !tcpIncomplete.value &&
+    !acmeNeedsDns.value,
 )
 
 async function save(): Promise<void> {
@@ -354,6 +363,8 @@ async function save(): Promise<void> {
   try {
     const updated = await updateProxyRoute(props.route.id, {
       config,
+      // 证书来源(空=保持不变由后端判定;这里恒发当前选择)。
+      tlsMode: tlsMode.value,
       // 仅在「启用认证 + 输入了新密码」时携带密码;关闭认证不发。
       ...(user && basicAuthPassword.value.length > 0
         ? { basicAuthPassword: basicAuthPassword.value }
@@ -391,6 +402,19 @@ async function save(): Promise<void> {
     </button>
 
     <div v-if="open" class="adv__body">
+      <!-- R5:证书来源(Caddy 自签 ACME / 主机上 acme.sh) -->
+      <section class="advsec">
+        <h4 class="advsec__h">{{ t('reverseProxy.adv.certTitle') }}</h4>
+        <p class="advsec__lede">{{ t('reverseProxy.adv.certLede') }}</p>
+        <select v-model="tlsMode" class="advin">
+          <option value="auto">{{ t('reverseProxy.adv.certAuto') }}</option>
+          <option value="acme.sh">{{ t('reverseProxy.adv.certAcmeSh') }}</option>
+        </select>
+        <p v-if="acmeNeedsDns" class="advhint advhint--err">{{ t('reverseProxy.adv.certAcmeShNeedsDns') }}</p>
+        <p v-else-if="tlsMode === 'acme.sh'" class="advhint">{{ t('reverseProxy.adv.certAcmeShHint') }}</p>
+        <p v-else class="advhint">{{ t('reverseProxy.adv.certAutoHint') }}</p>
+      </section>
+
       <!-- R3:DNS 提供商(DNS-01 / 通配符) -->
       <section class="advsec">
         <h4 class="advsec__h">{{ t('reverseProxy.adv.dnsTitle') }}</h4>

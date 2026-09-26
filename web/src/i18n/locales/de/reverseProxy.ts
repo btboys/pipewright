@@ -1,6 +1,6 @@
 export default {
   // Kopfbereich
-  lede: 'Binde eine Domain — Caddy stellt automatisch ein Let\'s-Encrypt-Zertifikat aus und erneuert es.',
+  lede: 'Binde eine Domain — Caddy stellt automatisch ein Let\'s-Encrypt-Zertifikat aus und erneuert es, oder acme.sh auf dem Host übernimmt das (pro Route, unter „Erweitert“).',
   hostAddress: 'Host-Adresse',
   hostIpTitle: 'Richte den A-Record der Domain auf diese Adresse',
   // Bindungsformular
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: 'Ausgestellt · gültig',
   tlsLabel: 'TLS',
   tlsAuto: 'Automatisch (Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh (auf dem Host per DNS-01 ausgestellt)',
+  tlsAcmeShHint: 'Wird von acme.sh auf dem Zielhost ausgestellt und erneuert (DNS-01).',
+  issueCertTitle: 'Dieses Zertifikat ausstellen / erneuern (acme.sh)',
+  issueCertDone: 'Ausstellung / Erneuerung angestoßen',
+  issueCertFail: 'Ausstellung fehlgeschlagen',
   // DNS-Hinweis (fehlgeschlagen)
   dnsGuide: 'Richte den A-Record dieser Domain auf den Host {host} und klicke dann auf Erneut versuchen.',
   retry: 'Erneut versuchen',
@@ -126,6 +131,13 @@ export default {
     aliasIsPrimary: 'Diese Domain ist bereits die primäre.',
     aliasDup: 'Dieser Alias ist bereits hinzugefügt.',
     removeAlias: 'Alias {v} entfernen',
+    certTitle: 'Zertifikatsquelle',
+    certLede: 'Woher das TLS-Zertifikat kommt: Caddy stellt es automatisch aus, oder acme.sh auf dem Host (DNS-01).',
+    certAuto: "Caddy automatisch (Let's Encrypt)",
+    certAcmeSh: 'acme.sh auf dem Host',
+    certAutoHint: 'Caddy beantragt und erneuert das Zertifikat selbst. Keine weitere Einrichtung nötig.',
+    certAcmeShHint: 'acme.sh auf dem Host stellt das Zertifikat per DNS-01 aus; Caddy lädt es nur. Die Erneuerung läuft nach acme.sh-Zeitplan — funktioniert also auch mit einem unveränderten caddy:2-Image.',
+    certAcmeShNeedsDns: 'Der acme.sh-Modus braucht einen DNS-Anbieter: Caddy belegt weiterhin 80/443, daher ist nur DNS-01 möglich.',
     dnsTitle: 'DNS-Anbieter (DNS-01 / Wildcard)',
     dnsLede: 'Binde einen DNS-Anbieter ein, um die DNS-01-Validierung zu nutzen, die Wildcard-Domains (*.example.com) ermöglicht.',
     dnsProviderLabel: 'DNS-Anbieter',

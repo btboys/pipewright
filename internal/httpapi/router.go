@@ -784,6 +784,8 @@ func New(webFS fs.FS, authn auth.Authenticator, opts ...Option) http.Handler {
 		ar.Put("/proxy/routes/{id}", makeUpdateProxyRouteHandler(px, aud))
 		ar.Post("/proxy/routes/{id}/enabled", makeSetProxyRouteEnabledHandler(px, aud))
 		ar.Post("/proxy/routes/{id}/refresh", makeRefreshProxyRouteHandler(px))
+		// 证书签发/续期(tls_mode=acme.sh):在目标主机上跑 acme.sh。写方法,过 auth + CSRF + 审计。
+		ar.Post("/proxy/routes/{id}/cert", makeIssueProxyCertHandler(px, aud))
 		ar.Delete("/proxy/routes/{id}", makeDeleteProxyRouteHandler(px, aud))
 		// 反代环境(pipewright-caddy 容器)知情同意 + 移除:GET 探测状态(auth);DELETE 移除容器
 		// (auth + CSRF + 审计;保留证书卷)。字面段 /proxy/caddy 与 /proxy/routes 不同尾段,不会被吞。

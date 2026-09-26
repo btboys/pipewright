@@ -21,7 +21,9 @@ const (
 	auditActionProxyRouteEnable  = "proxy.route.enable"
 	auditActionProxyRouteDisable = "proxy.route.disable"
 	auditActionProxyRouteUpdate  = "proxy.route.update"
-	auditTargetProxyRoute        = "proxy_route"
+	// 证书签发/续期(acme.sh 模式)审计。detail 仅 domain/mode,无敏感信息。
+	auditActionProxyRouteCert = "proxy.route.cert"
+	auditTargetProxyRoute     = "proxy_route"
 
 	// 反代环境(pipewright-caddy 容器)移除审计。detail 仅 serverId,无敏感信息。
 	auditActionProxyCaddyRemove = "proxy.caddy.remove"
@@ -208,6 +210,12 @@ func writeProxyError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "invalid_route", "通配符域名(*.example.com)必须先绑定一个 DNS 提供商(走 DNS-01 签发)")
 	case errors.Is(err, proxy.ErrInvalidDNSProvider):
 		writeError(w, http.StatusUnprocessableEntity, "invalid_route", "引用的 DNS 提供商不存在或不可用")
+	case errors.Is(err, proxy.ErrInvalidTLSMode):
+		writeError(w, http.StatusBadRequest, "invalid_route", "证书模式非法,只支持「Caddy 自动签发」或「acme.sh」")
+	case errors.Is(err, proxy.ErrAcmeNeedsDNS):
+		writeError(w, http.StatusBadRequest, "invalid_route", "acme.sh 模式必须先绑定一个 DNS 提供商(走 DNS-01 签发)")
+	case errors.Is(err, proxy.ErrAcmeIssue):
+		writeError(w, http.StatusBadGateway, "acme_issue_failed", "acme.sh 签发证书失败,请查看该路由的证书详情")
 	case errors.Is(err, proxy.ErrInvalidPathRule):
 		writeError(w, http.StatusBadRequest, "invalid_route", "路径路由规则非法:路径须以 / 起且仅含安全字符,上游容器/端口须合法")
 	case errors.Is(err, proxy.ErrBcrypt):
@@ -271,6 +279,8 @@ func makeCreateProxyRouteHandler(svc proxy.Service, rec audit.Recorder) http.Han
 			UpstreamContainer string `json:"upstreamContainer"`
 			UpstreamPort      int    `json:"upstreamPort"`
 			DNSProviderID     string `json:"dnsProviderId"`
+			// 证书模式 ∈ "auto"(默认/空,Caddy 自签) | "acme.sh"(主机上 acme.sh 经 DNS-01 签发)。
+			TLSMode string `json:"tlsMode"`
 			// 主上游类型在 config 内传(与前端约定一致);缺省 → "container"。
 			Config struct {
 				UpstreamKind string `json:"upstreamKind"`
@@ -287,6 +297,7 @@ func makeCreateProxyRouteHandler(svc proxy.Service, rec audit.Recorder) http.Han
 			UpstreamPort:      in.UpstreamPort,
 			UpstreamKind:      in.Config.UpstreamKind,
 			DNSProviderID:     in.DNSProviderID,
+			TLSMode:           in.TLSMode,
 		})
 		if err != nil {
 			writeProxyError(w, err)
@@ -370,11 +381,40 @@ func makeRefreshProxyRouteHandler(svc proxy.Service) http.HandlerFunc {
 	}
 }
 
+// makeIssueProxyCertHandler 返回 POST /api/proxy/routes/{id}/cert(认证 + CSRF + 审计)→ Route。
+// 在目标主机上经 acme.sh 签发/续期该路由证书(仅 tls_mode=acme.sh;auto 模式由 Caddy 自理 → 400)。
+// 签发失败是**状态**而非请求错误:落成 certStatus=failed + 人话 certDetail 并 200 返回路由。
+func makeIssueProxyCertHandler(svc proxy.Service, rec audit.Recorder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if svc == nil {
+			writeError(w, http.StatusServiceUnavailable, "internal", "反代服务未初始化")
+			return
+		}
+		id := chi.URLParam(r, "id")
+		route, err := svc.IssueCert(r.Context(), id)
+		if err != nil {
+			writeProxyError(w, err)
+			return
+		}
+		recordAudit(r.Context(), rec, audit.Entry{
+			Actor:      auditActor,
+			Action:     auditActionProxyRouteCert,
+			TargetType: auditTargetProxyRoute,
+			TargetID:   route.ID,
+			Detail:     map[string]any{"domain": route.Domain, "tlsMode": route.TLSMode, "certStatus": route.CertStatus},
+			IP:         clientIP(r),
+		})
+		writeJSON(w, http.StatusOK, toProxyRouteDTO(*route))
+	}
+}
+
 // proxyUpdateBody 是 PUT /api/proxy/routes/{id} 的请求体(冻结契约)。
 type proxyUpdateBody struct {
 	UpstreamContainer string `json:"upstreamContainer"`
 	UpstreamPort      int    `json:"upstreamPort"`
-	Config            struct {
+	// 证书模式 ∈ ""(保持不变) | "auto" | "acme.sh"。
+	TLSMode string `json:"tlsMode"`
+	Config  struct {
 		UpstreamKind    string   `json:"upstreamKind"`
 		Aliases         []string `json:"aliases"`
 		ForceHTTPS      bool     `json:"forceHttps"`
@@ -450,6 +490,7 @@ func makeUpdateProxyRouteHandler(svc proxy.Service, rec audit.Recorder) http.Han
 			UpstreamContainer: in.UpstreamContainer,
 			UpstreamPort:      in.UpstreamPort,
 			UpstreamKind:      in.Config.UpstreamKind,
+			TLSMode:           in.TLSMode,
 			Config: proxy.RouteConfig{
 				UpstreamKind:    in.Config.UpstreamKind,
 				Aliases:         in.Config.Aliases,

@@ -1,7 +1,7 @@
 export default {
   eyebrow: '維運大盤',
   title: '憑證總覽',
-  subtitle: '跨主機、跨網域的反代憑證集中成一張表 —— 狀態、有效期、到期一眼看清。續期由 Caddy 自動完成,這裡只為安心確認。',
+  subtitle: '跨主機、跨網域的反代憑證集中成一張表 —— 狀態、有效期、到期一眼看清。Caddy 自動簽發,或由主機上的 acme.sh 簽發(可在此簽發 / 續期),這裡只為一眼確認。',
   summaryAria: '憑證摘要',
   cardTotal: '路由總數',
   cardIssued: '已簽發',
@@ -26,6 +26,10 @@ export default {
   statusPending: '申請中',
   statusFailed: '失敗',
   disabled: '已停用',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: '簽發 / 續期該憑證(acme.sh)',
+  issueCertDone: '已下發簽發 / 續期',
+  issueCertFail: '簽發失敗',
   daysLeft: '{n} 天後',
   expiresToday: '今天到期',
   expiredAgo: '已過期 {n} 天',
@@ -41,5 +45,5 @@ export default {
   errLoad: '載入失敗({status})。',
   errReq: '請求失敗({status})。',
   errNetwork: '網路錯誤,請稍後重試。',
-  footNote: '續期由 Caddy 在到期前自動完成,無需手動操作 —— 這張表只是讓你隨時確認健康狀態。',
+  footNote: 'auto 模式由 Caddy 在到期前自動續期;acme.sh 模式由主機上的 acme.sh 依自己的排程續期 —— 也可在此手動觸發。這張表只是讓你隨時確認健康狀態。',
 }

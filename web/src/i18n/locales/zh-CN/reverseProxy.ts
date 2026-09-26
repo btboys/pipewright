@@ -1,6 +1,6 @@
 export default {
   // 头部
-  lede: '绑定域名,Caddy 经 Let\'s Encrypt 自动签发并续期证书。',
+  lede: '绑定域名,Caddy 经 Let\'s Encrypt 自动签发并续期证书;也可在「高级设置」里改为由主机上的 acme.sh 签发。',
   hostAddress: '本机地址',
   hostIpTitle: '把域名的 A 记录指到此地址',
   // 绑定表单
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: '已签发,有效期内',
   tlsLabel: 'TLS',
   tlsAuto: '自动(Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh(主机上经 DNS-01 签发)',
+  tlsAcmeShHint: '由目标主机上的 acme.sh 签发 / 续期(走 DNS-01)。',
+  issueCertTitle: '签发 / 续期该证书(acme.sh)',
+  issueCertDone: '已下发签发 / 续期',
+  issueCertFail: '签发失败',
   // DNS 指引(失败态)
   dnsGuide: '把该域名的 A 记录指到本机 {host},再点「重试」。',
   retry: '重试',
@@ -136,6 +141,13 @@ export default {
     aliasDup: '该别名已添加。',
     removeAlias: '移除别名 {v}',
     // R3:DNS 提供商 + 通配符(DNS-01)
+    certTitle: '证书来源',
+    certLede: 'TLS 证书从哪里来:Caddy 自动签发,或由目标主机上的 acme.sh 签发(走 DNS-01)。',
+    certAuto: "Caddy 自动签发(Let's Encrypt)",
+    certAcmeSh: '主机上的 acme.sh',
+    certAutoHint: '由 Caddy 自行申请并续期证书,无需额外配置。',
+    certAcmeShHint: '证书由目标主机上的 acme.sh 经 DNS-01 签发,Caddy 只负责加载;续期按 acme.sh 自己的计划执行。用原版 caddy:2 镜像也能签泛域名。',
+    certAcmeShNeedsDns: 'acme.sh 模式必须挂接 DNS 提供商:Caddy 仍占着 80/443,只能走 DNS-01 校验。',
     dnsTitle: 'DNS 提供商(DNS-01 / 通配符)',
     dnsLede: '挂接一个 DNS 提供商即可走 DNS-01 验证,从而支持通配符域名(*.example.com)。',
     dnsProviderLabel: 'DNS 提供商',

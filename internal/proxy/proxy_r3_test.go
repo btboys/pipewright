@@ -39,7 +39,7 @@ func TestRenderDNS01Block(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "app.example.com", UpstreamContainer: "web", UpstreamPort: 8080,
 		Config: RouteConfig{DNSProviderID: "prov-1"},
-	}}, creds)
+	}}, creds, nil)
 	want := "    tls {\n        dns cloudflare cf-secret-token\n    }\n"
 	if !strings.Contains(out, want) {
 		t.Fatalf("DNS-01 tls 块不符:\n--- got ---\n%s\n--- want ---\n%s", out, want)
@@ -54,7 +54,7 @@ func TestRenderDNS01OmittedWhenNoToken(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "app.example.com", UpstreamContainer: "web", UpstreamPort: 8080,
 		Config: RouteConfig{DNSProviderID: "prov-x"},
-	}}, nil)
+	}}, nil, nil)
 	if strings.Contains(out, "tls {") {
 		t.Fatalf("无 token 不应渲染 tls 块:\n%s", out)
 	}
@@ -67,7 +67,7 @@ func TestRenderWildcardWithDNS01(t *testing.T) {
 	out := renderCaddyfile([]Route{{
 		Domain: "*.example.com", UpstreamContainer: "web", UpstreamPort: 80,
 		Config: RouteConfig{DNSProviderID: "prov-1"},
-	}}, creds)
+	}}, creds, nil)
 	if !strings.Contains(out, "*.example.com {\n") {
 		t.Fatalf("通配符站点块头不符:\n%s", out)
 	}
@@ -84,7 +84,7 @@ func TestRenderPathRules(t *testing.T) {
 			{Path: "/api/*", UpstreamContainer: "api_c", UpstreamPort: 8080},
 			{Path: "/static/*", UpstreamContainer: "cdn_c", UpstreamPort: 80},
 		}},
-	}}, nil)
+	}}, nil, nil)
 	for _, want := range []string{
 		"    handle /api/* {\n        reverse_proxy api_c:8080\n    }\n",
 		"    handle /static/* {\n        reverse_proxy cdn_c:80\n    }\n",
@@ -113,7 +113,7 @@ func TestRenderWildcardDNS01PathRulesCombined(t *testing.T) {
 				{Path: "/api/*", UpstreamContainer: "api_c", UpstreamPort: 9000},
 			},
 		},
-	}}, creds)
+	}}, creds, nil)
 
 	want := `*.apps.example.com {
     tls {

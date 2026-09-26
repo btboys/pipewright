@@ -1,6 +1,6 @@
 export default {
   // Header
-  lede: 'Bind a domain — Caddy auto-issues and renews a Let\'s Encrypt certificate.',
+  lede: 'Bind a domain — Caddy auto-issues and renews a Let\'s Encrypt certificate, or hand issuance to acme.sh on the host (per-route, under Advanced).',
   hostAddress: 'Host address',
   hostIpTitle: 'Point the domain\'s A record at this address',
   // Bind form
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: 'Issued · valid',
   tlsLabel: 'TLS',
   tlsAuto: 'Auto (Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh (DNS-01 — issued on the host)',
+  tlsAcmeShHint: 'Issued and renewed by acme.sh on the host (DNS-01).',
+  issueCertTitle: 'Issue / renew this certificate (acme.sh)',
+  issueCertDone: 'Certificate issued / renewed',
+  issueCertFail: 'Issuance failed',
   // DNS guidance (failed)
   dnsGuide: 'Point this domain\'s A record at the host {host}, then click Retry.',
   retry: 'Retry',
@@ -127,6 +132,13 @@ export default {
     aliasIsPrimary: 'That domain is already the primary.',
     aliasDup: 'That alias is already added.',
     removeAlias: 'Remove alias {v}',
+    certTitle: 'Certificate source',
+    certLede: 'Where the TLS certificate comes from: Caddy issues it automatically, or acme.sh on the host does (DNS-01).',
+    certAuto: "Caddy auto (Let's Encrypt)",
+    certAcmeSh: 'acme.sh on the host',
+    certAutoHint: 'Caddy requests and renews the certificate itself. No extra setup.',
+    certAcmeShHint: "acme.sh on the host issues the cert via DNS-01; Caddy just loads it. Renewal follows acme.sh's own schedule, so it also works with a stock caddy:2 image.",
+    certAcmeShNeedsDns: 'acme.sh mode needs a DNS provider: Caddy still holds ports 80/443, so only DNS-01 validation is possible.',
     dnsTitle: 'DNS provider (DNS-01 / wildcard)',
     dnsLede: 'Attach a DNS provider to use DNS-01 validation, which enables wildcard domains (*.example.com).',
     dnsProviderLabel: 'DNS provider',

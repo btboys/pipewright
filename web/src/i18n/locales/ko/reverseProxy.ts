@@ -1,6 +1,6 @@
 export default {
   // 헤더
-  lede: '도메인을 연결하면 Caddy가 Let\'s Encrypt로 인증서를 자동 발급하고 갱신합니다.',
+  lede: '도메인을 연결하면 Caddy가 Let\'s Encrypt 인증서를 자동 발급·갱신합니다(「고급 설정」에서 호스트의 acme.sh로 전환 가능).',
   hostAddress: '호스트 주소',
   hostIpTitle: '도메인의 A 레코드를 이 주소로 지정하세요',
   // 연결 폼
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: '발급됨 · 유효',
   tlsLabel: 'TLS',
   tlsAuto: '자동(Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh(호스트에서 DNS-01로 발급)',
+  tlsAcmeShHint: '대상 호스트의 acme.sh가 발급·갱신합니다(DNS-01).',
+  issueCertTitle: '이 인증서 발급 / 갱신(acme.sh)',
+  issueCertDone: '발급 / 갱신을 실행했습니다',
+  issueCertFail: '발급 실패',
   // DNS 안내(실패 시)
   dnsGuide: '이 도메인의 A 레코드를 호스트 {host}로 지정한 뒤 「재시도」를 누르세요.',
   retry: '재시도',
@@ -126,6 +131,13 @@ export default {
     aliasIsPrimary: '해당 도메인은 이미 기본 도메인입니다.',
     aliasDup: '이미 추가된 별칭입니다.',
     removeAlias: '별칭 {v} 제거',
+    certTitle: '인증서 소스',
+    certLede: 'TLS 인증서를 어디서 얻을지. Caddy가 자동 발급하거나 호스트의 acme.sh가 발급합니다(DNS-01).',
+    certAuto: "Caddy 자동(Let's Encrypt)",
+    certAcmeSh: '호스트의 acme.sh',
+    certAutoHint: 'Caddy가 인증서를 직접 신청·갱신합니다. 추가 설정이 필요 없습니다.',
+    certAcmeShHint: '호스트의 acme.sh가 DNS-01로 인증서를 발급하고 Caddy는 로드만 합니다. 갱신은 acme.sh 자체 일정으로 실행되며, 기본 caddy:2 이미지로도 와일드카드를 발급할 수 있습니다.',
+    certAcmeShNeedsDns: 'acme.sh 모드에는 DNS 공급자가 필요합니다. Caddy가 80/443을 점유하므로 DNS-01 검증만 가능합니다.',
     dnsTitle: 'DNS 공급자(DNS-01 / 와일드카드)',
     dnsLede: 'DNS 공급자를 연결하면 DNS-01 검증을 사용해 와일드카드 도메인(*.example.com)을 지원합니다.',
     dnsProviderLabel: 'DNS 공급자',

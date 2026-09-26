@@ -258,16 +258,17 @@ func (s *Store) setCertStatus(ctx context.Context, id, status, detail string) er
 	return nil
 }
 
-// updateConfig 更新某路由的 upstream 容器/端口 + 高级配置 JSON(R2 Update 用);不存在 → ErrNotFound。
-func (s *Store) updateConfig(ctx context.Context, id, container string, port int, cfg RouteConfig) error {
+// updateConfig 更新某路由的 upstream 容器/端口 + 证书模式 + 高级配置 JSON(R2 Update 用)。
+// 三者在同一条 UPDATE 里落库,避免「模式改了但配置没改」的半更新。不存在 → ErrNotFound。
+func (s *Store) updateConfig(ctx context.Context, id, tlsMode, container string, port int, cfg RouteConfig) error {
 	cfgJSON, err := marshalConfig(cfg)
 	if err != nil {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE proxy_routes SET upstream_container = ?, upstream_port = ?, config = ?, updated_at = ? WHERE id = ?`,
-		container, port, cfgJSON, now, id)
+		`UPDATE proxy_routes SET tls_mode = ?, upstream_container = ?, upstream_port = ?, config = ?, updated_at = ? WHERE id = ?`,
+		tlsMode, container, port, cfgJSON, now, id)
 	if err != nil {
 		return fmt.Errorf("proxy: update config: %w", err)
 	}
@@ -307,7 +308,7 @@ func newRoute(in CreateInput) *Route {
 		Domain:            in.Domain,
 		UpstreamContainer: in.UpstreamContainer,
 		UpstreamPort:      in.UpstreamPort,
-		TLSMode:           tlsModeAuto,
+		TLSMode:           normalizeTLSMode(in.TLSMode),
 		Enabled:           true,
 		CertStatus:        CertStatusPending,
 		CertDetail:        "",

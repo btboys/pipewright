@@ -1,6 +1,6 @@
 export default {
   // ヘッダー
-  lede: 'ドメインをバインドすると、Caddy が Let\'s Encrypt で証明書を自動発行・更新します。',
+  lede: 'ドメインをバインドすると Caddy が Let\'s Encrypt 証明書を自動発行・更新します(「詳細設定」でホスト上の acme.sh に切り替えも可能)。',
   hostAddress: 'ホストアドレス',
   hostIpTitle: 'ドメインの A レコードをこのアドレスに向けてください',
   // バインドフォーム
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: '発行済み · 有効',
   tlsLabel: 'TLS',
   tlsAuto: '自動(Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh(ホスト上で DNS-01 により発行)',
+  tlsAcmeShHint: 'ターゲットホスト上の acme.sh が発行・更新します(DNS-01)。',
+  issueCertTitle: 'この証明書を発行 / 更新(acme.sh)',
+  issueCertDone: '発行 / 更新を実行しました',
+  issueCertFail: '発行に失敗しました',
   // DNS ガイダンス(失敗時)
   dnsGuide: 'このドメインの A レコードをホスト {host} に向けてから「再試行」を押してください。',
   retry: '再試行',
@@ -127,6 +132,13 @@ export default {
     aliasIsPrimary: 'そのドメインは既にプライマリです。',
     aliasDup: 'そのエイリアスは既に追加されています。',
     removeAlias: 'エイリアス {v} を削除',
+    certTitle: '証明書のソース',
+    certLede: 'TLS 証明書の取得元。Caddy が自動発行するか、ホスト上の acme.sh が発行します(DNS-01)。',
+    certAuto: "Caddy 自動(Let's Encrypt)",
+    certAcmeSh: 'ホスト上の acme.sh',
+    certAutoHint: 'Caddy が証明書を申請・更新します。追加設定は不要です。',
+    certAcmeShHint: 'ホスト上の acme.sh が DNS-01 で証明書を発行し、Caddy は読み込むだけです。更新は acme.sh のスケジュールで実行され、素の caddy:2 イメージでもワイルドカードを取得できます。',
+    certAcmeShNeedsDns: 'acme.sh モードには DNS プロバイダーが必要です。Caddy が 80/443 を占有しているため、DNS-01 検証しか使えません。',
     dnsTitle: 'DNS プロバイダー(DNS-01 / ワイルドカード)',
     dnsLede: 'DNS プロバイダーを接続すると DNS-01 検証を使え、ワイルドカードドメイン(*.example.com)に対応します。',
     dnsProviderLabel: 'DNS プロバイダー',

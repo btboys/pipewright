@@ -1,8 +1,7 @@
 export default {
   eyebrow: 'Ops-Dashboard',
   title: 'Zertifikate',
-  subtitle:
-    'Alle Reverse-Proxy-Zertifikate über alle Hosts und Domains in einer Tabelle — Status, Gültigkeit und Ablauf auf einen Blick. Caddy erneuert automatisch; dies dient nur der Bestätigung.',
+  subtitle: 'Alle Reverse-Proxy-Zertifikate über alle Hosts und Domains in einer Tabelle — Status, Gültigkeit und Ablauf auf einen Blick. Caddy erneuert automatisch, oder acme.sh auf dem Host; hier bestätigst du es auf einen Blick.',
   summaryAria: 'Zertifikatsübersicht',
   cardTotal: 'Routen gesamt',
   cardIssued: 'Ausgestellt',
@@ -27,6 +26,10 @@ export default {
   statusPending: 'Ausstehend',
   statusFailed: 'Fehlgeschlagen',
   disabled: 'Deaktiviert',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: 'Dieses Zertifikat ausstellen / erneuern (acme.sh)',
+  issueCertDone: 'Ausstellung / Erneuerung angestoßen',
+  issueCertFail: 'Ausstellung fehlgeschlagen',
   daysLeft: 'Noch {n} T',
   expiresToday: 'Läuft heute ab',
   expiredAgo: 'Vor {n} T abgelaufen',
@@ -43,6 +46,5 @@ export default {
   errLoad: 'Laden fehlgeschlagen ({status}).',
   errReq: 'Anfrage fehlgeschlagen ({status}).',
   errNetwork: 'Netzwerkfehler, bitte erneut versuchen.',
-  footNote:
-    'Caddy erneuert automatisch vor Ablauf — keine manuelle Aktion nötig. Diese Tabelle dient nur zur jederzeitigen Statusbestätigung.',
+  footNote: 'Im auto-Modus erneuert Caddy vor Ablauf, im acme.sh-Modus acme.sh nach eigenem Zeitplan — keine manuelle Aktion nötig. Diese Tabelle dient nur zur jederzeitigen Statusbestätigung.',
 }

@@ -1,8 +1,7 @@
 export default {
   eyebrow: 'Tableau de bord ops',
   title: 'Certificats',
-  subtitle:
-    'Tous les certificats de proxy inverse de chaque hôte et domaine dans un seul tableau — statut, validité et expiration en un coup d’œil. Caddy renouvelle automatiquement ; ceci sert juste à confirmer.',
+  subtitle: 'Tous les certificats de proxy inverse de chaque hôte et domaine dans un seul tableau — statut, validité et expiration en un coup d’œil. Caddy renouvelle automatiquement, ou acme.sh sur l’hôte ; cette page sert à le confirmer.',
   summaryAria: 'Résumé des certificats',
   cardTotal: 'Routes totales',
   cardIssued: 'Émis',
@@ -27,6 +26,10 @@ export default {
   statusPending: 'En attente',
   statusFailed: 'Échec',
   disabled: 'Désactivé',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: 'Délivrer / renouveler ce certificat (acme.sh)',
+  issueCertDone: 'Délivrance / renouvellement lancé',
+  issueCertFail: 'Échec de la délivrance',
   daysLeft: '{n}j restants',
   expiresToday: 'Expire aujourd’hui',
   expiredAgo: 'Expiré il y a {n}j',
@@ -43,6 +46,5 @@ export default {
   errLoad: 'Échec du chargement ({status}).',
   errReq: 'Échec de la requête ({status}).',
   errNetwork: 'Erreur réseau, veuillez réessayer.',
-  footNote:
-    'Caddy renouvelle automatiquement avant l’expiration, sans action manuelle. Ce tableau vous permet juste de confirmer l’état à tout moment.',
+  footNote: 'En mode auto, Caddy renouvelle avant l’expiration ; en mode acme.sh, c’est acme.sh selon son propre calendrier — sans action manuelle. Ce tableau vous permet juste de confirmer l’état.',
 }

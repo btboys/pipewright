@@ -1,6 +1,6 @@
 export default {
   // En-tête
-  lede: 'Liez un domaine : Caddy émet et renouvelle automatiquement un certificat Let\'s Encrypt.',
+  lede: 'Liez un domaine : Caddy émet et renouvelle automatiquement un certificat Let\'s Encrypt, ou confiez l’émission à acme.sh sur l’hôte (par route, sous « Avancé »).',
   hostAddress: 'Adresse de l\'hôte',
   hostIpTitle: 'Pointez l\'enregistrement A du domaine vers cette adresse',
   // Formulaire de liaison
@@ -43,6 +43,11 @@ export default {
   certIssuedFallback: 'Émis · valide',
   tlsLabel: 'TLS',
   tlsAuto: 'Automatique (Let\'s Encrypt · HTTP-01)',
+  tlsAcmeSh: 'acme.sh (délivré sur l’hôte via DNS-01)',
+  tlsAcmeShHint: 'Délivré et renouvelé par acme.sh sur l’hôte cible (DNS-01).',
+  issueCertTitle: 'Délivrer / renouveler ce certificat (acme.sh)',
+  issueCertDone: 'Délivrance / renouvellement lancé',
+  issueCertFail: 'Échec de la délivrance',
   // Guide DNS (échec)
   dnsGuide: 'Pointez l\'enregistrement A de ce domaine vers l\'hôte {host}, puis cliquez sur Réessayer.',
   retry: 'Réessayer',
@@ -128,6 +133,13 @@ export default {
     aliasDup: 'Cet alias est déjà ajouté.',
     removeAlias: 'Retirer l’alias {v}',
     // R3 : fournisseur DNS + générique (DNS-01)
+    certTitle: 'Source du certificat',
+    certLede: 'D’où vient le certificat TLS : Caddy l’émet automatiquement, ou acme.sh sur l’hôte (DNS-01).',
+    certAuto: "Caddy automatique (Let's Encrypt)",
+    certAcmeSh: 'acme.sh sur l’hôte',
+    certAutoHint: 'Caddy demande et renouvelle le certificat lui-même. Aucune configuration supplémentaire.',
+    certAcmeShHint: 'acme.sh sur l’hôte délivre le certificat via DNS-01 ; Caddy ne fait que le charger. Le renouvellement suit le calendrier d’acme.sh — fonctionne donc aussi avec une image caddy:2 standard.',
+    certAcmeShNeedsDns: 'Le mode acme.sh exige un fournisseur DNS : Caddy occupe toujours 80/443, donc seule la validation DNS-01 est possible.',
     dnsTitle: 'Fournisseur DNS (DNS-01 / générique)',
     dnsLede: 'Rattachez un fournisseur DNS pour utiliser la validation DNS-01, qui permet les domaines génériques (*.example.com).',
     dnsProviderLabel: 'Fournisseur DNS',

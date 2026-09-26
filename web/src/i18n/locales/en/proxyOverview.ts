@@ -1,8 +1,7 @@
 export default {
   eyebrow: 'Ops dashboard',
   title: 'Certificates',
-  subtitle:
-    'Every reverse-proxy certificate across every host and domain in one table — status, validity and expiry at a glance. Caddy renews automatically; this is just to confirm at a glance.',
+  subtitle: 'Every reverse-proxy certificate across every host and domain in one table — status, validity and expiry at a glance. Caddy renews automatically, or acme.sh on the host does; this page is where you confirm it at a glance.',
   summaryAria: 'Certificate summary',
   cardTotal: 'Total routes',
   cardIssued: 'Issued',
@@ -27,6 +26,10 @@ export default {
   statusPending: 'Pending',
   statusFailed: 'Failed',
   disabled: 'Disabled',
+  modeAcmeSh: 'acme.sh',
+  issueCertTitle: 'Issue / renew this certificate (acme.sh)',
+  issueCertDone: 'Issuance / renewal triggered',
+  issueCertFail: 'Issuance failed',
   daysLeft: '{n}d left',
   expiresToday: 'Expires today',
   expiredAgo: 'Expired {n}d ago',
@@ -43,6 +46,5 @@ export default {
   errLoad: 'Load failed ({status}).',
   errReq: 'Request failed ({status}).',
   errNetwork: 'Network error, please try again.',
-  footNote:
-    'Caddy renews automatically before expiry — no manual action needed. This table just lets you confirm health any time.',
+  footNote: 'Caddy renews automatically before expiry; in acme.sh mode acme.sh does, on its own schedule — no manual action needed. This table just lets you confirm health any time.',
 }

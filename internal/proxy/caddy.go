@@ -47,8 +47,10 @@ type dnsCred struct {
 // 站点块即自动经 Let's Encrypt(HTTP-01)签发并续期证书,无需任何额外指令。
 // dnsCreds 按 DNS 提供商 id 索引:某路由绑了 DNS 提供商时渲染 `tls { dns <type> <token> }`(DNS-01,
 // 通配符必需)。未提供 token(map 缺该 id)的 DNS-01 路由退回 HTTP-01 渲染(不写 token)。
+// acmeReady 按证书目录名索引:仅 tls_mode=acme.sh 且证书**已装好在主机上**的路由才渲染显式
+// `tls <fullchain> <privkey>` —— Caddy 在加载期即读这些文件,文件缺失会让 reload 直接失败。
 // 无 enabled 路由时返回带说明注释的空配置(reload 一份合法空配置,不破坏既有 Caddy 进程)。
-func renderCaddyfile(routes []Route, dnsCreds map[string]dnsCred) string {
+func renderCaddyfile(routes []Route, dnsCreds map[string]dnsCred, acmeReady map[string]bool) string {
 	// 稳定排序:按 domain 升序,保证渲染结果确定(便于测试 + reload 幂等)。
 	sorted := make([]Route, len(routes))
 	copy(sorted, routes)
@@ -67,7 +69,7 @@ func renderCaddyfile(routes []Route, dnsCreds map[string]dnsCred) string {
 		return b.String()
 	}
 	for _, r := range sorted {
-		renderSite(&b, r, dnsCreds)
+		renderSite(&b, r, dnsCreds, acmeReady)
 	}
 	return b.String()
 }
@@ -116,7 +118,7 @@ func renderLayer4Global(b *strings.Builder, routes []Route) {
 // 站点块头 = 主域名 + 别名,以 ", " 连接;块内指令按确定顺序输出(IP 黑名单 → 白名单 →
 // basic auth → header → encode → redir → reverse_proxy),便于 golden 测试与 reload 幂等。
 // 所有进入文本的值已在领域层(validateConfig)严格校验过,渲染处不再二次防注入。
-func renderSite(b *strings.Builder, r Route, dnsCreds map[string]dnsCred) {
+func renderSite(b *strings.Builder, r Route, dnsCreds map[string]dnsCred, acmeReady map[string]bool) {
 	cfg := r.Config
 
 	// 站点块头:主域名 + 别名。
@@ -127,9 +129,16 @@ func renderSite(b *strings.Builder, r Route, dnsCreds map[string]dnsCred) {
 	b.WriteString(header)
 	b.WriteString(" {\n")
 
-	// DNS-01(R3:通配符必需):该路由绑了 DNS 提供商且 apply 取到了 token → 渲染 tls { dns ... }。
-	// token 注入此处(Caddy 据此经 DNS API 完成 ACME DNS-01 挑战);整份配置写 0600 临时文件,绝不日志。
-	if cfg.DNSProviderID != "" {
+	// 证书来源二选一(互斥):
+	//   - acme.sh 模式:证书由目标主机的 acme.sh 签发并挂载进容器,Caddy 只显式加载 —— 不再自行 ACME,
+	//     也不需要 DNS 插件(证书已含所需域名)。未就绪时不写 tls 行(Caddy 加载期读不到文件会失败)。
+	//   - auto 模式:Caddy 自签。绑了 DNS 提供商且 apply 取到 token → 渲染 tls { dns ... }(DNS-01,
+	//     泛域名必需);token 注入此处,整份配置写 0600 临时文件,绝不日志。
+	if normalizeTLSMode(r.TLSMode) == TLSModeAcmeSh {
+		if acmeReady[acmeCertDirName(r.Domain)] {
+			b.WriteString("    tls " + acmeContainerCertPath(r.Domain) + " " + acmeContainerKeyPath(r.Domain) + "\n")
+		}
+	} else if cfg.DNSProviderID != "" {
 		if cred, ok := dnsCreds[cfg.DNSProviderID]; ok && cred.Type != "" && cred.Token != "" {
 			b.WriteString("    tls {\n")
 			switch cred.Type {
@@ -267,7 +276,10 @@ func renderReverseProxy(b *strings.Builder, indent string, r Route, cfg RouteCon
 // Caddy 容器**对宿主发布**(-p)才能被外部访问 —— layer4 监听在容器内,不发布则不可达。Docker 端口
 // 在容器创建时固定,故当既有 Caddy 容器未发布某个新增 TCP 端口时,需带「既有映射 ∪ TCP 端口」重建容器
 // (镜像自带默认 Caddyfile 兜底启动,随后 apply 会覆盖为真实配置 + reload;证书/配置走持久卷不丢)。
-func ensureCaddy(ctx context.Context, tg target.Service, serverID string, tcpPorts []int) error {
+//
+// needAcmeMount 表示本主机是否已有 tls_mode=acme.sh 的路由。只有这时才要求容器挂载证书目录 ——
+// 纯 auto 主机不该因为多了个能力就被迫重建容器(重建会让 80/443 短暂中断)。
+func ensureCaddy(ctx context.Context, tg target.Service, serverID string, tcpPorts []int, needAcmeMount bool) error {
 	// 1) 共享网络(存在即跳过)。inspect 非零退出(网络不存在)→ create。
 	netInsp, err := tg.Exec(ctx, serverID, []string{"docker", "network", "inspect", proxyNetwork})
 	if err != nil {
@@ -283,8 +295,8 @@ func ensureCaddy(ctx context.Context, tg target.Service, serverID string, tcpPor
 		}
 	}
 
-	// 2) Caddy 容器存在:校验是否已发布全部 TCP 监听端口。已覆盖 → 幂等返回;缺端口 → 保留既有
-	//    端口映射(如自定义 18080/18443)并补上缺失的 TCP 端口后重建容器。
+	// 2) Caddy 容器存在:校验是否已发布全部 TCP 监听端口(+ 需要时校验证书目录挂载)。
+	//    已齐备 → 幂等返回;有缺 → 保留既有端口映射(如自定义 18080/18443)并补齐后重建容器。
 	insp, err := tg.Exec(ctx, serverID, []string{"docker", "inspect", caddyContainer})
 	if err != nil {
 		return mapExecErr(err)
@@ -294,7 +306,15 @@ func ensureCaddy(ctx context.Context, tg target.Service, serverID string, tcpPor
 		if perr != nil {
 			return perr
 		}
-		if caddyPortsCover(cur, tcpPorts) {
+		mounted := true
+		if needAcmeMount {
+			m, merr := caddyHasAcmeMount(ctx, tg, serverID)
+			if merr != nil {
+				return merr
+			}
+			mounted = m
+		}
+		if caddyPortsCover(cur, tcpPorts) && mounted {
 			return nil
 		}
 		// 重建:rm -f 释放端口 → 用「既有映射 ∪ TCP 端口」重起。
@@ -319,6 +339,9 @@ func ensureCaddy(ctx context.Context, tg target.Service, serverID string, tcpPor
 // --add-host host.docker.internal:host-gateway 让 address 类上游能反代到宿主机服务。
 func runCaddyContainer(ctx context.Context, tg target.Service, serverID string, ports map[int]int) error {
 	image := caddyImageRef()
+	// 证书目录先建好(acme.sh 模式把签发结果落在这里,只读挂进容器给 Caddy 加载)。
+	// mkdir 失败不阻断:docker -v 会自动建目录,只是权限归 root,与容器内读证书无碍。
+	_, _ = tg.Exec(ctx, serverID, []string{"mkdir", "-p", acmeHostDir})
 	// best-effort pull(离线/已缓存场景交由 docker run 决断)。
 	if _, perr := tg.Exec(ctx, serverID, []string{"docker", "pull", image}); perr != nil {
 		return mapExecErr(perr)
@@ -342,6 +365,8 @@ func runCaddyContainer(ctx context.Context, tg target.Service, serverID string, 
 	runCmd = append(runCmd,
 		"-v", caddyDataVol+":/data",
 		"-v", caddyConfigVol+":/config",
+		// acme.sh 模式:主机证书目录只读挂进容器(Caddyfile 以此路径加载证书)。卷不存在时 docker 自建。
+		"-v", acmeHostDir+":"+acmeContainerDir+":ro",
 		image,
 		"caddy", "run", "--config", caddyfilePath, "--adapter", "caddyfile",
 	)
@@ -382,6 +407,28 @@ func inspectCaddyPortMap(ctx context.Context, tg target.Service, serverID string
 		}
 	}
 	return m, nil
+}
+
+// caddyHasAcmeMount 报告既有 Caddy 容器是否已把 acme.sh 证书目录只读挂进容器(acmeContainerDir)。
+// 未挂载的老容器无法读到 acme.sh 的证书文件,ensureCaddy 据此重建容器(一次性自愈)。
+// 容器不存在 / 格式串无输出 → false(调用方当「需重建」处理)。
+func caddyHasAcmeMount(ctx context.Context, tg target.Service, serverID string) (bool, error) {
+	res, err := tg.Exec(ctx, serverID, []string{
+		"docker", "inspect", caddyContainer,
+		"--format", "{{range .Mounts}}{{.Destination}} {{end}}",
+	})
+	if err != nil {
+		return false, mapExecErr(err)
+	}
+	if res.ExitCode != 0 {
+		return false, nil
+	}
+	for _, dest := range strings.Fields(res.Stdout) {
+		if dest == acmeContainerDir {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // caddyPortsCover 报告既有端口映射是否已覆盖全部所需 TCP 端口。
