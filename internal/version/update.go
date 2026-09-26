@@ -11,16 +11,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
 // defaultRepo 是检查更新所查询的 GitHub 仓库(owner/name)。可经 PIPEWRIGHT_RELEASE_REPO 覆盖
 // (便于 fork 指向自己的发布渠道)。
 const defaultRepo = "btboys/pipewright"
-
-// checkTTL 是更新检查结果的缓存时长:GitHub 未鉴权 API 限速 60 次/小时/IP,缓存避免反复点击打爆。
-const checkTTL = 15 * time.Minute
 
 // UpdateInfo 是 /api/version/check 的返回:当前版本、最新版本及是否有更新。
 // CheckError 非空表示这次检查本身失败(网络/限流);此时 UpdateAvailable 恒 false,
@@ -44,15 +40,16 @@ type ghRelease struct {
 	Prerelease  bool   `json:"prerelease"`
 }
 
-// Checker 查询 GitHub 最新发布并与当前构建版本比对,带 TTL 缓存。零值不可用,请用 NewChecker。
+// Checker 查询 GitHub 最新发布并与当前构建版本比对。零值不可用,请用 NewChecker。
+//
+// 刻意不缓存:Check 只有两个调用方,都是用户主动触发 —— 「检查更新」按钮,以及自更新
+// (后者还拿 Check 的 Latest 去决定下载并替换哪个版本的二进制)。对主动动作而言,过期结果
+// 只有害处:用户刚发完版点检查却看到旧版本号,自更新更会照着旧版本号动自己的二进制。
+// 未鉴权 API 的 60 次/小时限额由 403 时的网页站 302 兜底兜住(见 tryRedirectFallback),
+// 那条路不占 API 配额。
 type Checker struct {
 	repo   string
 	client *http.Client
-
-	mu       sync.Mutex
-	cached   *UpdateInfo
-	cachedAt time.Time
-	now      func() time.Time // 可注入,便于测试缓存过期
 }
 
 // NewChecker 返回默认 Checker(查 defaultRepo / 可经 env 覆盖,10s 超时)。
@@ -64,7 +61,6 @@ func NewChecker() *Checker {
 	return &Checker{
 		repo:   repo,
 		client: &http.Client{Timeout: 10 * time.Second},
-		now:    time.Now,
 	}
 }
 
@@ -200,29 +196,11 @@ func htmlToText(h string) string {
 	return strings.Join(out, "\n")
 }
 
-// Check 返回更新信息。命中未过期缓存则直接返回;否则查 GitHub。
+// Check 查 GitHub 取最新发布并与当前版本比对 —— 每次调用都真查,不吃缓存(理由见 Checker 注释)。
 // 网络/解析失败不返回 error —— 而是在 UpdateInfo.CheckError 里带上原因(始终附当前版本),
 // 让上层端点稳定返回 200、前端优雅降级。
 func (c *Checker) Check(ctx context.Context) UpdateInfo {
-	c.mu.Lock()
-	if c.cached != nil && c.now().Sub(c.cachedAt) < checkTTL {
-		cached := *c.cached
-		c.mu.Unlock()
-		return cached
-	}
-	c.mu.Unlock()
-
-	info := c.fetch(ctx)
-
-	// 仅缓存成功结果:失败不缓存,以便用户重试时立刻再查。
-	if info.CheckError == "" {
-		c.mu.Lock()
-		cp := info
-		c.cached = &cp
-		c.cachedAt = c.now()
-		c.mu.Unlock()
-	}
-	return info
+	return c.fetch(ctx)
 }
 
 func (c *Checker) fetch(ctx context.Context) UpdateInfo {

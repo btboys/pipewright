@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestCompareVersions(t *testing.T) {
@@ -65,7 +64,7 @@ func newStubChecker(t *testing.T, current string, h http.HandlerFunc) (*Checker,
 		Version = prevVer
 		srv.Close()
 	}
-	c := &Checker{repo: "owner/repo", client: srv.Client(), now: time.Now}
+	c := &Checker{repo: "owner/repo", client: srv.Client()}
 	return c, cleanup
 }
 
@@ -188,7 +187,9 @@ func TestHtmlToText(t *testing.T) {
 	}
 }
 
-func TestCheck_CachesSuccess(t *testing.T) {
+// 每次 Check 都必须真查 GitHub:这两个调用方(「检查更新」按钮、自更新)都是用户主动动作,
+// 吃到过期结果会让人以为刚发的版没生效,自更新更会照着旧版本号替换自己的二进制。
+func TestCheck_AlwaysQueriesUpstream(t *testing.T) {
 	var hits int
 	c, done := newStubChecker(t, "v1.0.0", func(w http.ResponseWriter, _ *http.Request) {
 		hits++
@@ -197,7 +198,28 @@ func TestCheck_CachesSuccess(t *testing.T) {
 	defer done()
 	_ = c.Check(context.Background())
 	_ = c.Check(context.Background())
-	if hits != 1 {
-		t.Errorf("expected 1 upstream hit (second served from cache), got %d", hits)
+	if hits != 2 {
+		t.Errorf("expected 2 upstream hits (no caching), got %d", hits)
+	}
+}
+
+// 新版本发布后立刻再查必须立刻看到 —— 这是用户报告「发完版还显示旧版本」的那条路径。
+func TestCheck_SeesNewReleaseImmediately(t *testing.T) {
+	var tag = "v1.1.0"
+	c, done := newStubChecker(t, "v1.0.0", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"` + tag + `"}`))
+	})
+	defer done()
+
+	if got := c.Check(context.Background()).Latest; got != "v1.1.0" {
+		t.Fatalf("首次应看到 v1.1.0, got %q", got)
+	}
+	tag = "v1.2.0" // 模拟上游刚发布新版
+	info := c.Check(context.Background())
+	if info.Latest != "v1.2.0" {
+		t.Fatalf("上游发布新版后应立即看到 v1.2.0, got %q", info.Latest)
+	}
+	if !info.UpdateAvailable {
+		t.Fatal("应判定有更新")
 	}
 }

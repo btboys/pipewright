@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestMode_DockerEnvVar(t *testing.T) {
@@ -86,7 +85,7 @@ func TestFetchChecksum(t *testing.T) {
 		_, _ = w.Write([]byte("aaaa  pipewright_1.0.0_linux_amd64.tar.gz\nbbbb  pipewright_1.0.0_darwin_arm64.tar.gz\n"))
 	}))
 	defer srv.Close()
-	c := &Checker{client: srv.Client(), now: time.Now}
+	c := &Checker{client: srv.Client()}
 	sum, err := c.fetchChecksum(context.Background(), srv.URL, "pipewright_1.0.0_darwin_arm64.tar.gz")
 	if err != nil {
 		t.Fatal(err)
