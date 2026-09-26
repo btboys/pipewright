@@ -49,7 +49,7 @@ README 的 Architecture 一节有按 foundation / pipelines / execution / delive
 
 **加一条 API 路由**：`internal/httpapi/<area>.go` 写 handler，`router.go` 注册；新领域服务通过 `Option` 注入（`New(…, opts...)`），并在 `cmd/pipewright/main.go` 完成装配。领域逻辑不要写在 handler 里。
 
-**加一次数据库变更**：在 `internal/store/migrations/sqlite/` 与 `internal/store/migrations/mysql/` **各加一份同名同号的 `NNNN_name.sql`**（当前两侧各 47 份、1:1 对应，需保持）。文件经 `go:embed` 内嵌，按版本号排序幂等应用。
+**加一次数据库变更**：在 `internal/store/migrations/sqlite/` 与 `internal/store/migrations/mysql/` **各加一份同名同号的 `NNNN_name.sql`**（当前两侧各 48 份、1:1 对应，需保持）。文件经 `go:embed` 内嵌，按版本号排序幂等应用。
 - SQLite 走单事务；MySQL 逐句执行（DDL 隐式提交），幂等靠 `CREATE TABLE/TRIGGER IF NOT EXISTS`。
 - MySQL 的 `CREATE INDEX` / `ALTER ADD COLUMN` 无 `IF NOT EXISTS`，靠 `schema_migrations` 保证只应用一次。
 

@@ -26,7 +26,7 @@ export default {
 
     // Webhook section
     webhookTitle: 'Webhook 接入',
-    webhookSub: '代码平台 · Gitee',
+    webhookSub: '代码平台 · Gitee / 云效',
     endpointLabel: '接收端点',
     copied: '已复制',
     copyUrlAria: '复制 Webhook URL',
@@ -40,7 +40,10 @@ export default {
     resetSecretAria: '重置签名密钥',
     reset: '重置',
     pushConfigLabel: '推送配置',
-    pushConfigHint: '在 Gitee 仓库 → 管理 → WebHooks 粘贴以上地址与密钥,事件勾选 Push / Tag Push / Release / Pull Request。',
+    pushConfigHint: '在 Gitee 仓库 → 管理 → WebHooks 粘贴以上地址与密钥,事件勾选 Push / Tag Push / Release / Pull Request。同一端点也适用于云效 Codeup(事件名与 Gitee 相同;token 经 X-Codeup-Token 或 X-Gitlab-Token 请求头传递)。',
+    tokenHeaderLabel: 'Token 校验请求头',
+    tokenHeaderPlaceholder: '留空自动识别',
+    tokenHeaderHint: '留空 = 自动识别 Gitee / 云效 Codeup / GitLab 的 token 头(X-Gitee-Token、X-Codeup-Token、X-Gitlab-Token);填写后只校验该请求头(如 X-Codeup-Token)。',
 
     // Events section
     eventsTitle: '触发事件',

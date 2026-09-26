@@ -23,6 +23,9 @@ type triggerDTO struct {
 	UnmatchedPolicy     string             `json:"unmatchedPolicy"`
 	// PathFilters 为路径过滤 glob 列表(monorepo · P0);空 = 不启用(放行一切)。
 	PathFilters []string `json:"pathFilters"`
+	// TokenHeader 为自定义 token 校验请求头名;空 = 按内置回退链自动识别
+	// (X-Gitee-Token → X-Codeup-Token → X-Gitlab-Token)。
+	TokenHeader string `json:"tokenHeader"`
 }
 
 type eventsDTO struct {
@@ -70,6 +73,7 @@ func toTriggerDTO(c *trigger.Config) triggerDTO {
 		BranchMappings:  mappings,
 		UnmatchedPolicy: c.UnmatchedPolicy,
 		PathFilters:     filters,
+		TokenHeader:     c.TokenHeader,
 	}
 }
 
@@ -88,6 +92,8 @@ func writeTriggerError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusUnprocessableEntity, "invalid_unmatched_policy", "未匹配策略只能为 record 或 ignore")
 	case errors.Is(err, trigger.ErrInvalidPathFilter):
 		writeError(w, http.StatusUnprocessableEntity, "invalid_path_filter", "路径过滤 glob 不能含空白(如 backend/**、*.go)")
+	case errors.Is(err, trigger.ErrInvalidTokenHeader):
+		writeError(w, http.StatusUnprocessableEntity, "invalid_token_header", "自定义 token 校验请求头名不合法(仅允许字母、数字与 !#$%&'*+-.^_`|~,且不超过 64 字符)")
 	default:
 		writeError(w, http.StatusInternalServerError, "internal", "服务器内部错误")
 	}
@@ -136,6 +142,7 @@ func makeSaveTriggerHandler(svc trigger.Service) http.HandlerFunc {
 			} `json:"branchMappings"`
 			UnmatchedPolicy string   `json:"unmatchedPolicy"`
 			PathFilters     []string `json:"pathFilters"`
+			TokenHeader     string   `json:"tokenHeader"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "bad_request", "请求体格式错误")
@@ -161,6 +168,7 @@ func makeSaveTriggerHandler(svc trigger.Service) http.HandlerFunc {
 			BranchMappings:  mappings,
 			UnmatchedPolicy: req.UnmatchedPolicy,
 			PathFilters:     req.PathFilters,
+			TokenHeader:     req.TokenHeader,
 		})
 		if err != nil {
 			writeTriggerError(w, err)

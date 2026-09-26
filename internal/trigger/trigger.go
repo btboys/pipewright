@@ -54,6 +54,8 @@ var (
 	ErrInvalidPolicy = errors.New("trigger: invalid unmatched policy")
 	// ErrInvalidPathFilter 表示路径过滤 glob 非空校验失败(去空白后为空)。
 	ErrInvalidPathFilter = errors.New("trigger: invalid path filter")
+	// ErrInvalidTokenHeader 表示自定义 token 校验请求头名非法(非 RFC 7230 token / 过长)。
+	ErrInvalidTokenHeader = errors.New("trigger: invalid token header")
 )
 
 // Events 是触发事件开关(手动触发常开,不建模为字段)。
@@ -81,10 +83,14 @@ type BranchMapping struct {
 //
 // PathFilters 为路径过滤 glob 列表(monorepo · P0):非空时仅当本次 push 改动文件匹配任一 glob 才触发;
 // 空列表 = 不启用(放行一切,向后兼容)。glob 支持 `*`(单段)与 `**`(跨 `/`)。
+//
+// TokenHeader 为自定义 token 校验请求头名:空 = 按内置回退链(见 resolveTokenHeader);
+// 非空 = 只认该头。用于平台/网关用非标准头名传 token 的场景。
 type Config struct {
 	ProjectID           string
 	WebhookToken        string
 	WebhookSecretMasked string
+	TokenHeader         string
 	Events              Events
 	BranchMappings      []BranchMapping
 	UnmatchedPolicy     string
@@ -99,6 +105,7 @@ type SaveInput struct {
 	BranchMappings  []BranchMapping
 	UnmatchedPolicy string
 	PathFilters     []string
+	TokenHeader     string
 }
 
 // ResetResult 是重置密钥的结果:完整明文仅此一次返回,同时给掩码。
@@ -165,6 +172,10 @@ func (s *service) Save(ctx context.Context, projectID string, in SaveInput) (*Co
 	if err != nil {
 		return nil, err
 	}
+	tokenHeader, err := normalizeTokenHeader(in.TokenHeader)
+	if err != nil {
+		return nil, err
+	}
 
 	eventsJSON, err := json.Marshal(in.Events)
 	if err != nil {
@@ -182,9 +193,9 @@ func (s *service) Save(ctx context.Context, projectID string, in SaveInput) (*Co
 	nowStr := time.Now().UTC().Format(time.RFC3339)
 	_, err = s.db.ExecContext(ctx,
 		`UPDATE pipeline_triggers
-		 SET events_json = ?, branch_mappings_json = ?, unmatched_policy = ?, path_filters_json = ?, updated_at = ?
+		 SET events_json = ?, branch_mappings_json = ?, unmatched_policy = ?, path_filters_json = ?, token_header = ?, updated_at = ?
 		 WHERE project_id = ?`,
-		string(eventsJSON), string(mappingsJSON), policy, string(pathFiltersJSON), nowStr, projectID,
+		string(eventsJSON), string(mappingsJSON), policy, string(pathFiltersJSON), tokenHeader, nowStr, projectID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("trigger: update config: %w", err)
@@ -232,10 +243,10 @@ func (s *service) load(ctx context.Context, projectID string) (*Config, string, 
 	cfg.ProjectID = projectID
 	err := s.db.QueryRowContext(ctx,
 		`SELECT webhook_token, webhook_secret_ciphertext, events_json, branch_mappings_json,
-		        unmatched_policy, path_filters_json, created_at, updated_at
+		        unmatched_policy, path_filters_json, token_header, created_at, updated_at
 		 FROM pipeline_triggers WHERE project_id = ?`, projectID,
 	).Scan(&cfg.WebhookToken, &sealed, &eventsJSON, &mappingsJSON,
-		&cfg.UnmatchedPolicy, &pathFiltersJSON, &createdStr, &updatedStr)
+		&cfg.UnmatchedPolicy, &pathFiltersJSON, &cfg.TokenHeader, &createdStr, &updatedStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, "", ErrNotFound
@@ -490,6 +501,43 @@ func normalizePathFilters(in []string) ([]string, error) {
 		out = append(out, p)
 	}
 	return out, nil
+}
+
+// maxTokenHeaderLen 是自定义 token 请求头名长度上限(合法 HTTP 头名远短于此,
+// 上限仅用于拒绝明显异常输入)。
+const maxTokenHeaderLen = 64
+
+// normalizeTokenHeader 校验并规范化自定义 token 校验请求头名。
+//   - 空(或纯空白)= 不启用自定义头,回落内置回退链 → 返回 ""。
+//   - 非空必须 ≤ maxTokenHeaderLen 且形如 RFC 7230 token(HTTP 头名字符集) → 否则 ErrInvalidTokenHeader。
+//
+// 头名大小写不敏感由取头实现(net/http.Header.Get)保证,此处不做大小写归一。
+func normalizeTokenHeader(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil
+	}
+	if len(name) > maxTokenHeaderLen || !isHTTPToken(name) {
+		return "", fmt.Errorf("%w: %q", ErrInvalidTokenHeader, name)
+	}
+	return name, nil
+}
+
+// isHTTPToken 判断 s 是否为 RFC 7230 token(HTTP 头名字符集):tchar = ALPHA / DIGIT / "!#$%&'*+-.^_`|~"。
+func isHTTPToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := range s {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case strings.IndexByte("!#$%&'*+-.^_`|~", c) >= 0:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // validateBranchPattern 校验分支(通配)模式:非空;仅允许 glob 通配 `*`(及普通字符)。

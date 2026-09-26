@@ -5,7 +5,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
+	"maps"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -34,6 +37,27 @@ func (f *fakeRunCreator) count() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.calls)
+}
+
+// hdrs 把明文头表包成 HeaderLookup(键大小写不敏感,模拟 net/http.Header.Get)。
+func hdrs(kv map[string]string) HeaderLookup {
+	lower := make(map[string]string, len(kv))
+	for k, v := range kv {
+		lower[strings.ToLower(k)] = v
+	}
+	return func(name string) string { return lower[strings.ToLower(name)] }
+}
+
+// giteeHeaders 构造 Gitee 风格头查找(空 timestamp / deliveryID 不设头)。
+func giteeHeaders(event, tokenHdr, timestamp, deliveryID string) HeaderLookup {
+	h := map[string]string{HeaderGiteeEvent: event, HeaderGiteeToken: tokenHdr}
+	if timestamp != "" {
+		h[HeaderGiteeTimestamp] = timestamp
+	}
+	if deliveryID != "" {
+		h[HeaderGiteeDelivery] = deliveryID
+	}
+	return hdrs(h)
 }
 
 // newReceiver 装配 Receiver + 已配 push 事件 + 分支映射 main→prod 的项目;返回 token、明文密钥。
@@ -80,11 +104,9 @@ func pushBody(branch, commit string) []byte {
 func TestWebhookPasswordModeCreatesRun(t *testing.T) {
 	rc, fake, token, secret := newReceiver(t)
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   secret,
-		DeliveryID: "d-1",
-		RawBody:    pushBody("main", "abc123"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-1"),
+		RawBody: pushBody("main", "abc123"),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -119,12 +141,9 @@ func TestWebhookSignatureModeCreatesRun(t *testing.T) {
 	sig := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   sig,
-		Timestamp:  ts,
-		DeliveryID: "d-sig",
-		RawBody:    pushBody("main", "deadbeef"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, sig, ts, "d-sig"),
+		RawBody: pushBody("main", "deadbeef"),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -146,12 +165,9 @@ func TestWebhookSignatureReplayRejected(t *testing.T) {
 	sig := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
 	_, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   sig,
-		Timestamp:  ts,
-		DeliveryID: "d-replay",
-		RawBody:    pushBody("main", "deadbeef"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, sig, ts, "d-replay"),
+		RawBody: pushBody("main", "deadbeef"),
 	})
 	if err != ErrUnauthorized {
 		t.Fatalf("旧 timestamp 应 401(防重放), got %v", err)
@@ -170,12 +186,9 @@ func TestWebhookSignatureMissingTimestampRejected(t *testing.T) {
 	sig := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
 	_, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   sig,
-		Timestamp:  "",
-		DeliveryID: "d-no-ts",
-		RawBody:    pushBody("main", "deadbeef"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, sig, "", "d-no-ts"),
+		RawBody: pushBody("main", "deadbeef"),
 	})
 	if err != ErrUnauthorized {
 		t.Fatalf("签名模式缺 timestamp 应 401, got %v", err)
@@ -191,12 +204,9 @@ func TestWebhookTimestampMillisAccepted(t *testing.T) {
 	sig := base64.StdEncoding.EncodeToString(mac.Sum(nil))
 
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   sig,
-		Timestamp:  ts,
-		DeliveryID: "d-ms",
-		RawBody:    pushBody("main", "deadbeef"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, sig, ts, "d-ms"),
+		RawBody: pushBody("main", "deadbeef"),
 	})
 	if err != nil {
 		t.Fatalf("Handle(ms ts): %v", err)
@@ -209,11 +219,9 @@ func TestWebhookTimestampMillisAccepted(t *testing.T) {
 func TestWebhookWrongSecretUnauthorized(t *testing.T) {
 	rc, fake, token, _ := newReceiver(t)
 	_, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   "whsec_wrong",
-		DeliveryID: "d-bad",
-		RawBody:    pushBody("main", "x"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, "whsec_wrong", "", "d-bad"),
+		RawBody: pushBody("main", "x"),
 	})
 	if err != ErrUnauthorized {
 		t.Fatalf("expected ErrUnauthorized, got %v", err)
@@ -227,11 +235,9 @@ func TestWebhookEventNotSubscribed(t *testing.T) {
 	rc, fake, token, secret := newReceiver(t)
 	// Tag 未勾选(仅 push 开)。
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventTag,
-		TokenHdr:   secret,
-		DeliveryID: "d-tag",
-		RawBody:    []byte(`{"ref":"refs/tags/v1","after":"t1"}`),
+		Token:   token,
+		Header:  giteeHeaders(eventTag, secret, "", "d-tag"),
+		RawBody: []byte(`{"ref":"refs/tags/v1","after":"t1"}`),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -248,11 +254,9 @@ func TestWebhookNoBranchMatchIgnored(t *testing.T) {
 	rc, fake, token, secret := newReceiver(t)
 	// UnmatchedPolicy=ignore;dev 不匹配任何映射。
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   secret,
-		DeliveryID: "d-dev",
-		RawBody:    pushBody("dev", "c1"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-dev"),
+		RawBody: pushBody("dev", "c1"),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -268,11 +272,9 @@ func TestWebhookNoBranchMatchIgnored(t *testing.T) {
 func TestWebhookWildcardBranchMatch(t *testing.T) {
 	rc, fake, token, secret := newReceiver(t)
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   secret,
-		DeliveryID: "d-rel",
-		RawBody:    pushBody("release/1.2", "r12"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-rel"),
+		RawBody: pushBody("release/1.2", "r12"),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -288,11 +290,9 @@ func TestWebhookWildcardBranchMatch(t *testing.T) {
 func TestWebhookDuplicateDeliveryIgnored(t *testing.T) {
 	rc, fake, token, secret := newReceiver(t)
 	d := Delivery{
-		Token:      token,
-		Event:      eventPush,
-		TokenHdr:   secret,
-		DeliveryID: "dup-1",
-		RawBody:    pushBody("main", "samecommit"),
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "dup-1"),
+		RawBody: pushBody("main", "samecommit"),
 	}
 	first, err := rc.Handle(context.Background(), d)
 	if err != nil || !first.Accepted {
@@ -348,11 +348,9 @@ func TestWebhookUnmatchedRecordIdempotent(t *testing.T) {
 	}
 	rc := NewReceiver(db, v, &fakeRunCreator{})
 	d := Delivery{
-		Token:      cfg.WebhookToken,
-		Event:      eventPush,
-		TokenHdr:   reset.Secret,
-		DeliveryID: "rec-1",
-		RawBody:    pushBody("feature/x", "c1"),
+		Token:   cfg.WebhookToken,
+		Header:  giteeHeaders(eventPush, reset.Secret, "", "rec-1"),
+		RawBody: pushBody("feature/x", "c1"),
 	}
 	r1, err := rc.Handle(ctx, d)
 	if err != nil || r1.Ignored != IgnoredUnmatchedRecorded {
@@ -413,11 +411,9 @@ func newTagReleaseReceiver(t *testing.T) (*Receiver, *fakeRunCreator, string, st
 func TestWebhookTagPushCarriesTagRefAndCommit(t *testing.T) {
 	rc, fake, token, secret := newTagReleaseReceiver(t)
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventTag,
-		TokenHdr:   secret,
-		DeliveryID: "d-tagpush",
-		RawBody:    []byte(`{"ref":"refs/tags/v1.2.3","after":"tagsha123"}`),
+		Token:   token,
+		Header:  giteeHeaders(eventTag, secret, "", "d-tagpush"),
+		RawBody: []byte(`{"ref":"refs/tags/v1.2.3","after":"tagsha123"}`),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -445,11 +441,9 @@ func TestWebhookTagPushCarriesTagRefAndCommit(t *testing.T) {
 func TestWebhookReleaseHookCreatesRunWithTagName(t *testing.T) {
 	rc, fake, token, secret := newTagReleaseReceiver(t)
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventRelease,
-		TokenHdr:   secret,
-		DeliveryID: "d-release",
-		RawBody:    []byte(`{"action":"published","release":{"tag_name":"v2.0.0","target_commitish":"main"}}`),
+		Token:   token,
+		Header:  giteeHeaders(eventRelease, secret, "", "d-release"),
+		RawBody: []byte(`{"action":"published","release":{"tag_name":"v2.0.0","target_commitish":"main"}}`),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -477,11 +471,9 @@ func TestWebhookReleaseNotSubscribed(t *testing.T) {
 	// newReceiver 只开 Push(Release=false)。
 	rc, fake, token, secret := newReceiver(t)
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token:      token,
-		Event:      eventRelease,
-		TokenHdr:   secret,
-		DeliveryID: "d-rel-nosub",
-		RawBody:    []byte(`{"release":{"tag_name":"v9","target_commitish":"main"}}`),
+		Token:   token,
+		Header:  giteeHeaders(eventRelease, secret, "", "d-rel-nosub"),
+		RawBody: []byte(`{"release":{"tag_name":"v9","target_commitish":"main"}}`),
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -497,10 +489,9 @@ func TestWebhookReleaseNotSubscribed(t *testing.T) {
 func TestWebhookTokenNotFound(t *testing.T) {
 	rc, _, _, secret := newReceiver(t)
 	_, err := rc.Handle(context.Background(), Delivery{
-		Token:    "nonexistent",
-		Event:    eventPush,
-		TokenHdr: secret,
-		RawBody:  pushBody("main", "x"),
+		Token:   "nonexistent",
+		Header:  giteeHeaders(eventPush, secret, "", ""),
+		RawBody: pushBody("main", "x"),
 	})
 	if err != ErrTokenNotFound {
 		t.Fatalf("expected ErrTokenNotFound, got %v", err)
@@ -519,13 +510,173 @@ func TestWebhookVaultUnconfiguredRejects(t *testing.T) {
 	// 用未配置 vault 的 Receiver(master key 缺失)→ 验签不可用,明确拒绝。
 	rc := NewReceiver(db, vault.New(db, nil), &fakeRunCreator{})
 	_, err = rc.Handle(context.Background(), Delivery{
-		Token:    cfg.WebhookToken,
-		Event:    eventPush,
-		TokenHdr: "anything",
-		RawBody:  pushBody("main", "x"),
+		Token:   cfg.WebhookToken,
+		Header:  giteeHeaders(eventPush, "anything", "", ""),
+		RawBody: pushBody("main", "x"),
 	})
 	if err != ErrUnauthorized {
 		t.Fatalf("expected ErrUnauthorized when vault unconfigured, got %v", err)
+	}
+}
+
+// TestNormalizeTokenHeader 验证自定义 token 头名校验:
+// 空/空白 = 不启用(回落内置链);合法头名原样保留;非法字符/超长 → ErrInvalidTokenHeader。
+func TestNormalizeTokenHeader(t *testing.T) {
+	ok := []struct{ in, want string }{
+		{"", ""},
+		{"   ", ""},
+		{"X-Custom-Token", "X-Custom-Token"},
+		{"  x-codeup-token  ", "x-codeup-token"},
+		{"X_Token.1", "X_Token.1"},
+	}
+	for _, c := range ok {
+		got, err := normalizeTokenHeader(c.in)
+		if err != nil || got != c.want {
+			t.Errorf("normalizeTokenHeader(%q)=%q,%v want %q", c.in, got, err, c.want)
+		}
+	}
+	bad := []string{"X Token", "X-Token:", "令牌头", strings.Repeat("A", maxTokenHeaderLen+1)}
+	for _, in := range bad {
+		if _, err := normalizeTokenHeader(in); !errors.Is(err, ErrInvalidTokenHeader) {
+			t.Errorf("normalizeTokenHeader(%q) should fail, got %v", in, err)
+		}
+	}
+}
+
+// TestWebhookCodeupHeadersCreatesRun 验证云效 Codeup 头被等价识别:
+// 事件/投递 id 走 X-Codeup-*,token 走 X-Codeup-Token(或 GitLab 兼容的 X-Gitlab-Token)。
+func TestWebhookCodeupHeadersCreatesRun(t *testing.T) {
+	for _, tokenHdrName := range []string{HeaderCodeupToken, HeaderGitlabToken} {
+		t.Run(tokenHdrName, func(t *testing.T) {
+			rc, fake, token, secret := newReceiver(t)
+			res, err := rc.Handle(context.Background(), Delivery{
+				Token: token,
+				Header: hdrs(map[string]string{
+					HeaderCodeupEvent:    eventPush,
+					tokenHdrName:         secret,
+					HeaderCodeupDelivery: "codeup-d-1",
+				}),
+				RawBody: pushBody("main", "codeup1"),
+			})
+			if err != nil || !res.Accepted {
+				t.Fatalf("Codeup 头应被接受: res=%+v err=%v", res, err)
+			}
+			if fake.count() != 1 {
+				t.Fatalf("expected 1 run, got %d", fake.count())
+			}
+			// 来源标签据头判定:Codeup 投递不应被记成 gitee。
+			if got := fake.calls[0].Actor; got != actorCodeup {
+				t.Fatalf("expected actor %q, got %q", actorCodeup, got)
+			}
+		})
+	}
+}
+
+// TestWebhookGitlabEventHeaderCreatesRun 验证 GitLab 头(X-Gitlab-Event + X-Gitlab-Token)
+// 也被接受(事件名与载荷同形),来源标签为 gitlab。
+func TestWebhookGitlabEventHeaderCreatesRun(t *testing.T) {
+	rc, fake, token, secret := newReceiver(t)
+	res, err := rc.Handle(context.Background(), Delivery{
+		Token: token,
+		Header: hdrs(map[string]string{
+			HeaderGitlabEvent: eventPush,
+			HeaderGitlabToken: secret,
+		}),
+		RawBody: pushBody("main", "gl1"),
+	})
+	if err != nil || !res.Accepted {
+		t.Fatalf("GitLab 头应被接受: res=%+v err=%v", res, err)
+	}
+	if fake.count() != 1 {
+		t.Fatalf("expected 1 run, got %d", fake.count())
+	}
+	if got := fake.calls[0].Actor; got != actorGitlab {
+		t.Fatalf("expected actor %q, got %q", actorGitlab, got)
+	}
+}
+
+// TestWebhookCustomTokenHeader 验证自定义 token 头名:
+//   - 配置 X-Custom-Token 后,只认该头:该头带正确密钥 → 通过;
+//     密钥只出现在内置头(X-Gitee-Token)→ 401(不偷偷回退,避免误配时静默通过)。
+func TestWebhookCustomTokenHeader(t *testing.T) {
+	db, _ := testDB(t)
+	v := vault.New(db, testMasterKey())
+	svc := New(db, v)
+	projID := seedProject(t, db)
+	ctx := context.Background()
+
+	cfg, err := svc.Get(ctx, projID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	reset, err := svc.ResetSecret(ctx, projID)
+	if err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	secret := reset.Secret
+	if _, err := svc.Save(ctx, projID, SaveInput{
+		Events:          Events{Push: true},
+		BranchMappings:  []BranchMapping{{BranchPattern: "main", Environment: "prod"}},
+		UnmatchedPolicy: PolicyIgnore,
+		TokenHeader:     "X-Custom-Token",
+	}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	// 保存后回读:自定义头名已持久化。
+	got, err := svc.Get(ctx, projID)
+	if err != nil {
+		t.Fatalf("get after save: %v", err)
+	}
+	if got.TokenHeader != "X-Custom-Token" {
+		t.Fatalf("token header not persisted, got %q", got.TokenHeader)
+	}
+
+	fake := &fakeRunCreator{}
+	rc := NewReceiver(db, v, fake)
+	body := pushBody("main", "custom1")
+	base := map[string]string{HeaderGiteeEvent: eventPush, HeaderGiteeDelivery: "custom-d-1"}
+
+	// 只认自定义头:内置头带正确密钥不算数。
+	withBuiltin := maps.Clone(base)
+	withBuiltin[HeaderGiteeToken] = secret
+	if _, err := rc.Handle(ctx, Delivery{Token: cfg.WebhookToken, Header: hdrs(withBuiltin), RawBody: body}); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("配了自定义头时不应回退内置头, got err=%v", err)
+	}
+	if fake.count() != 0 {
+		t.Fatalf("expected no run, got %d", fake.count())
+	}
+
+	// 自定义头带正确密钥 → 通过。
+	withCustom := maps.Clone(base)
+	withCustom["X-Custom-Token"] = secret
+	res, err := rc.Handle(ctx, Delivery{Token: cfg.WebhookToken, Header: hdrs(withCustom), RawBody: body})
+	if err != nil || !res.Accepted {
+		t.Fatalf("自定义头应通过: res=%+v err=%v", res, err)
+	}
+	if fake.count() != 1 {
+		t.Fatalf("expected 1 run, got %d", fake.count())
+	}
+}
+
+// TestActorOf 验证运行来源标签判定(按头识别平台,不参与鉴权)。
+func TestActorOf(t *testing.T) {
+	cases := []struct {
+		name      string
+		headers   map[string]string
+		tokenName string
+		want      string
+	}{
+		{"gitee", map[string]string{HeaderGiteeEvent: eventPush}, HeaderGiteeToken, actorGitee},
+		{"codeup-event", map[string]string{HeaderCodeupEvent: eventPush}, HeaderCodeupToken, actorCodeup},
+		{"codeup-token-only", map[string]string{HeaderCodeupToken: "s"}, HeaderCodeupToken, actorCodeup},
+		{"gitlab-token", map[string]string{}, HeaderGitlabToken, actorGitlab},
+		{"gitlab-event", map[string]string{HeaderGitlabEvent: eventPush}, HeaderGiteeToken, actorGitlab},
+		{"custom-header", map[string]string{"X-Custom-Token": "s"}, "X-Custom-Token", actorGitee},
+	}
+	for _, c := range cases {
+		if got := actorOf(Delivery{Header: hdrs(c.headers)}, c.tokenName); got != c.want {
+			t.Errorf("%s: actorOf = %q want %q", c.name, got, c.want)
+		}
 	}
 }
 

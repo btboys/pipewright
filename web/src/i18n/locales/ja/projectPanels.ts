@@ -23,7 +23,7 @@ export default {
     patternIllegal: '不正な文字が含まれています。許可されるのは英字、数字、/ - _ . * ? [ ] のみです',
 
     webhookTitle: 'Webhook 連携',
-    webhookSub: 'コードプラットフォーム · Gitee',
+    webhookSub: 'コードプラットフォーム · Gitee / Alibaba Cloud Codeup',
     endpointLabel: '受信エンドポイント',
     copied: 'コピーしました',
     copyUrlAria: 'Webhook URL をコピー',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: '署名シークレットをリセット',
     reset: 'リセット',
     pushConfigLabel: 'プッシュ設定',
-    pushConfigHint: 'Gitee リポジトリ → 管理 → WebHooks で上記のアドレスとシークレットを貼り付け、Push / Tag Push / Release / Pull Request イベントにチェックを入れます。',
+    pushConfigHint: 'Gitee リポジトリ → 管理 → WebHooks で上記のアドレスとシークレットを貼り付け、Push / Tag Push / Release / Pull Request イベントにチェックを入れます。同じエンドポイントは Alibaba Cloud Codeup でも利用できます(イベント名は Gitee と同じ;トークンは X-Codeup-Token または X-Gitlab-Token ヘッダーで渡します)。',
+    tokenHeaderLabel: 'Token 検証ヘッダー',
+    tokenHeaderPlaceholder: '空欄で自動認識',
+    tokenHeaderHint: '空欄 = Gitee / Alibaba Cloud Codeup / GitLab の token ヘッダーを自動認識(X-Gitee-Token、X-Codeup-Token、X-Gitlab-Token)。入力時はそのヘッダーのみ検証(例: X-Codeup-Token)。',
 
     eventsTitle: 'トリガーイベント',
     eventsSub: 'どのイベントでパイプライン実行を作成するか選択',

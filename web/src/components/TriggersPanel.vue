@@ -68,6 +68,9 @@ const unmatchedPolicy = ref<UnmatchedPolicy>('record')
 // 仅当本次 push 改动文件匹配任一 glob 才触发(拿不到改动文件列表时放行,诚实降级)。
 const pathFiltersText = ref('')
 
+// 自定义 token 校验请求头;空 = 后端按内置回退链自动识别(X-Gitee-Token → X-Codeup-Token → X-Gitlab-Token)。
+const tokenHeaderText = ref('')
+
 /** 解析多行 glob 文本为去空、trim 后的数组(去重保序)。 */
 function parsePathFilters(text: string): string[] {
   const out: string[] = []
@@ -229,6 +232,7 @@ async function handleSave(): Promise<void> {
       })),
       unmatchedPolicy: unmatchedPolicy.value,
       pathFilters: parsePathFilters(pathFiltersText.value),
+      tokenHeader: tokenHeaderText.value.trim(),
     })
     applyConfig(updated)
     showSaveSuccess()
@@ -260,6 +264,7 @@ function applyConfig(config: TriggerConfig): void {
   eventRelease.value          = config.events.release ?? false
   unmatchedPolicy.value       = config.unmatchedPolicy
   pathFiltersText.value       = (config.pathFilters ?? []).join('\n')
+  tokenHeaderText.value       = config.tokenHeader ?? ''
   mappings.value = config.branchMappings.map((m) => ({
     _key: ++_keySeq,
     id: m.id,
@@ -409,6 +414,19 @@ const displayWebhookUrl = computed(() => {
                 </svg>
                 {{ t('projectPanels.triggers.reset') }}
               </button>
+            </div>
+          </div>
+          <div class="webhook-row">
+            <span class="wk-label wk-label--wrap">{{ t('projectPanels.triggers.tokenHeaderLabel') }}</span>
+            <div class="token-header-col">
+              <input
+                v-model="tokenHeaderText"
+                type="text"
+                class="map-input map-input--mono"
+                :placeholder="t('projectPanels.triggers.tokenHeaderPlaceholder')"
+                :aria-label="t('projectPanels.triggers.tokenHeaderLabel')"
+              />
+              <p class="wk-hint">{{ t('projectPanels.triggers.tokenHeaderHint') }}</p>
             </div>
           </div>
           <div class="webhook-row">
@@ -668,6 +686,9 @@ const displayWebhookUrl = computed(() => {
 .webhook-row { display: grid; grid-template-columns: 80px 1fr; gap: 14px; align-items: start; padding: 12px 18px; border-bottom: 1px solid var(--color-border); }
 .webhook-row:last-child { border-bottom: none; }
 .wk-label { font-size: 0.79rem; color: var(--color-dim); padding-top: 9px; white-space: nowrap; }
+.wk-label--wrap { white-space: normal; line-height: 1.4; }
+.token-header-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.token-header-col .wk-hint { padding-top: 0; }
 .url-box { display: flex; align-items: stretch; background: var(--color-inset); border: 1px solid var(--color-border); border-radius: var(--rounded); overflow: hidden; }
 .url-text { flex: 1; height: 38px; display: flex; align-items: center; padding: 0 13px; font-size: 0.79rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mono { font-family: var(--font-mono); }

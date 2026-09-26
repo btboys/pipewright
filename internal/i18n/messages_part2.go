@@ -142,6 +142,10 @@ func init() {
 			"zh-TW": "路徑過濾 glob 不能含空白(如 backend/**、*.go)", "en": "path filter glob must not contain whitespace (e.g. backend/**, *.go)", "ja": "パスフィルターの glob に空白を含めることはできません(例: backend/**、*.go)",
 			"ko": "경로 필터 glob에는 공백이 포함될 수 없습니다(예: backend/**, *.go)", "es": "El glob del filtro de rutas no puede contener espacios en blanco (p. ej. backend/**, *.go)", "fr": "Le glob de filtre de chemin ne doit pas contenir d'espaces (p. ex. backend/**, *.go)", "de": "Der Pfadfilter-glob darf keine Leerzeichen enthalten (z. B. backend/**, *.go)",
 		},
+		"自定义 token 校验请求头名不合法(仅允许字母、数字与 !#$%&'*+-.^_`|~,且不超过 64 字符)": {
+			"zh-TW": "自訂 token 驗證請求標頭名稱不合法(僅允許字母、數字與 !#$%&'*+-.^_`|~,且不超過 64 字元)", "en": "invalid custom token header name (only letters, digits and !#$%&'*+-.^_`|~, max 64 chars)", "ja": "カスタム token 検証ヘッダー名が不正です(英数字と !#$%&'*+-.^_`|~ のみ、64 文字以内)",
+			"ko": "사용자 지정 token 검증 헤더 이름이 올바르지 않습니다(영문/숫자와 !#$%&'*+-.^_`|~ 만, 최대 64자)", "es": "Nombre de encabezado de token no válido (solo letras, dígitos y !#$%&'*+-.^_`|~, máx. 64 caracteres)", "fr": "Nom d'en-tête de token invalide (lettres, chiffres et !#$%&'*+-.^_`|~ uniquement, 64 caractères max)", "de": "Ungültiger Name für den Token-Header (nur Buchstaben, Ziffern und !#$%&'*+-.^_`|~, max. 64 Zeichen)",
+		},
 		"运行服务未初始化": {
 			"zh-TW": "執行服務尚未初始化", "en": "run service not initialized", "ja": "実行サービスが初期化されていません",
 			"ko": "실행 서비스가 초기화되지 않았습니다", "es": "El servicio de ejecución no está inicializado", "fr": "Le service d'exécution n'est pas initialisé", "de": "Ausführungsdienst ist nicht initialisiert",

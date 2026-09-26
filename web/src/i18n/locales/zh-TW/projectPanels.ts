@@ -23,7 +23,7 @@ export default {
     patternIllegal: '包含非法字元,只允許字母、數字、/ - _ . * ? [ ]',
 
     webhookTitle: 'Webhook 接入',
-    webhookSub: '程式碼平台 · Gitee',
+    webhookSub: '程式碼平台 · Gitee / 雲效',
     endpointLabel: '接收端點',
     copied: '已複製',
     copyUrlAria: '複製 Webhook URL',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: '重設簽章金鑰',
     reset: '重設',
     pushConfigLabel: '推送設定',
-    pushConfigHint: '在 Gitee 倉庫 → 管理 → WebHooks 貼上以上位址與金鑰,事件勾選 Push / Tag Push / Release / Pull Request。',
+    pushConfigHint: '在 Gitee 倉庫 → 管理 → WebHooks 貼上以上位址與金鑰,事件勾選 Push / Tag Push / Release / Pull Request。同一端點也適用於雲效 Codeup(事件名稱與 Gitee 相同;token 經 X-Codeup-Token 或 X-Gitlab-Token 請求頭傳遞)。',
+    tokenHeaderLabel: 'Token 校驗請求頭',
+    tokenHeaderPlaceholder: '留空自動識別',
+    tokenHeaderHint: '留空 = 自動識別 Gitee / 雲效 Codeup / GitLab 的 token 頭(X-Gitee-Token、X-Codeup-Token、X-Gitlab-Token);填寫後只校驗該請求頭(如 X-Codeup-Token)。',
 
     eventsTitle: '觸發事件',
     eventsSub: '勾選哪些事件建立流水線執行',

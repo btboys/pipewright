@@ -51,6 +51,8 @@ export interface TriggerConfig {
   unmatchedPolicy: UnmatchedPolicy
   /** 路径过滤 glob 列表(monorepo · P0);空 = 不启用(放行一切)。 */
   pathFilters: string[]
+  /** 自定义 token 校验请求头;空 = 后端按内置回退链自动识别(X-Gitee-Token → X-Codeup-Token → X-Gitlab-Token)。 */
+  tokenHeader: string
 }
 
 export interface SaveTriggerInput {
@@ -62,6 +64,8 @@ export interface SaveTriggerInput {
   }>
   unmatchedPolicy: UnmatchedPolicy
   pathFilters: string[]
+  /** 自定义 token 校验请求头;空 = 后端按内置回退链自动识别(X-Gitee-Token → X-Codeup-Token → X-Gitlab-Token)。 */
+  tokenHeader: string
 }
 
 export interface SecretResetResult {

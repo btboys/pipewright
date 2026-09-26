@@ -23,7 +23,7 @@ export default {
     patternIllegal: 'Contains illegal characters; only letters, digits, / - _ . * ? [ ] are allowed',
 
     webhookTitle: 'Webhook Ingress',
-    webhookSub: 'Code platform · Gitee',
+    webhookSub: 'Code platform · Gitee / Alibaba Cloud Codeup',
     endpointLabel: 'Receiving endpoint',
     copied: 'Copied',
     copyUrlAria: 'Copy webhook URL',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: 'Reset signing secret',
     reset: 'Reset',
     pushConfigLabel: 'Push setup',
-    pushConfigHint: 'In the Gitee repo → Manage → WebHooks, paste the address and secret above and check the Push / Tag Push / Release / Pull Request events.',
+    pushConfigHint: 'In the Gitee repo → Manage → WebHooks, paste the address and secret above and check the Push / Tag Push / Release / Pull Request events. The same endpoint also works with Alibaba Cloud Codeup (event names match Gitee; the token is passed via the X-Codeup-Token or X-Gitlab-Token header).',
+    tokenHeaderLabel: 'Token verification header',
+    tokenHeaderPlaceholder: 'Leave empty to auto-detect',
+    tokenHeaderHint: 'Empty = auto-detect the token header of Gitee / Alibaba Cloud Codeup / GitLab (X-Gitee-Token, X-Codeup-Token, X-Gitlab-Token); when set, only this header is verified (e.g. X-Codeup-Token).',
 
     eventsTitle: 'Trigger Events',
     eventsSub: 'Choose which events create a pipeline run',

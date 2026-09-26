@@ -76,12 +76,9 @@ func makeWebhookHandler(rc *trigger.Receiver) http.HandlerFunc {
 		}
 
 		res, err := rc.Handle(r.Context(), trigger.Delivery{
-			Token:      token,
-			Event:      r.Header.Get(trigger.HeaderGiteeEvent),
-			TokenHdr:   r.Header.Get(trigger.HeaderGiteeToken),
-			Timestamp:  r.Header.Get(trigger.HeaderGiteeTimestamp),
-			DeliveryID: r.Header.Get(trigger.HeaderGiteeDelivery),
-			RawBody:    body,
+			Token:   token,
+			Header:  r.Header.Get,
+			RawBody: body,
 		})
 		if err != nil {
 			switch {

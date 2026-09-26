@@ -23,7 +23,7 @@ export default {
     patternIllegal: '허용되지 않는 문자가 포함되어 있습니다. 문자, 숫자, / - _ . * ? [ ]만 허용됩니다',
 
     webhookTitle: 'Webhook 연동',
-    webhookSub: '코드 플랫폼 · Gitee',
+    webhookSub: '코드 플랫폼 · Gitee / Alibaba Cloud Codeup',
     endpointLabel: '수신 엔드포인트',
     copied: '복사됨',
     copyUrlAria: 'Webhook URL 복사',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: '서명 시크릿 재설정',
     reset: '재설정',
     pushConfigLabel: '푸시 설정',
-    pushConfigHint: 'Gitee 저장소 → 관리 → WebHooks에서 위 주소와 시크릿을 붙여넣고, Push / Tag Push / Release / Pull Request 이벤트를 체크하세요.',
+    pushConfigHint: 'Gitee 저장소 → 관리 → WebHooks에서 위 주소와 시크릿을 붙여넣고, Push / Tag Push / Release / Pull Request 이벤트를 체크하세요. 동일한 엔드포인트는 Alibaba Cloud Codeup에서도 사용할 수 있습니다(이벤트 이름은 Gitee와 동일; 토큰은 X-Codeup-Token 또는 X-Gitlab-Token 헤더로 전달).',
+    tokenHeaderLabel: 'Token 검증 헤더',
+    tokenHeaderPlaceholder: '비워 두면 자동 감지',
+    tokenHeaderHint: '비워 두기 = Gitee / Alibaba Cloud Codeup / GitLab의 token 헤더 자동 감지(X-Gitee-Token, X-Codeup-Token, X-Gitlab-Token); 입력 시 해당 헤더만 검증(예: X-Codeup-Token).',
 
     eventsTitle: '트리거 이벤트',
     eventsSub: '어떤 이벤트로 파이프라인 실행을 만들지 선택',

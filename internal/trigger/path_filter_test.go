@@ -124,7 +124,8 @@ func pushBodyWithFiles(branch, commit string, files ...string) []byte {
 func TestWebhookPathFilterHitTriggers(t *testing.T) {
 	rc, fake, token, secret := newReceiverWithPaths(t, []string{"backend/**"})
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token: token, Event: eventPush, TokenHdr: secret, DeliveryID: "d-hit",
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-hit"),
 		RawBody: pushBodyWithFiles("main", "abc", "backend/app/main.go", "README.md"),
 	})
 	if err != nil {
@@ -138,7 +139,8 @@ func TestWebhookPathFilterHitTriggers(t *testing.T) {
 func TestWebhookPathFilterMissIgnored(t *testing.T) {
 	rc, fake, token, secret := newReceiverWithPaths(t, []string{"backend/**"})
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token: token, Event: eventPush, TokenHdr: secret, DeliveryID: "d-miss",
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-miss"),
 		RawBody: pushBodyWithFiles("main", "abc", "frontend/index.ts", "docs/guide.md"),
 	})
 	if err != nil {
@@ -156,7 +158,8 @@ func TestWebhookPathFilterNoFilesAllows(t *testing.T) {
 	// 配了过滤但 payload 拿不到改动文件(无 commits)→ 诚实降级放行。
 	rc, fake, token, secret := newReceiverWithPaths(t, []string{"backend/**"})
 	res, err := rc.Handle(context.Background(), Delivery{
-		Token: token, Event: eventPush, TokenHdr: secret, DeliveryID: "d-nofiles",
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-nofiles"),
 		RawBody: pushBody("main", "abc"), // 无 commits 字段
 	})
 	if err != nil {

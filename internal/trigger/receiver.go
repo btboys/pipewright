@@ -35,6 +35,16 @@ const (
 	HeaderGiteeDelivery  = "X-Gitee-Delivery"
 )
 
+// 云效 Codeup / GitLab 兼容头。Codeup 事件名与载荷同 Gitee(GitLab 风格),
+// 仅头前缀不同;token 可能落在 X-Codeup-Token 或 X-Gitlab-Token。
+const (
+	HeaderCodeupEvent    = "X-Codeup-Event"
+	HeaderCodeupToken    = "X-Codeup-Token"
+	HeaderCodeupDelivery = "X-Codeup-Delivery"
+	HeaderGitlabToken    = "X-Gitlab-Token"
+	HeaderGitlabEvent    = "X-Gitlab-Event"
+)
+
 // Gitee 事件名(X-Gitee-Event 取值)。
 const (
 	eventPush         = "Push Hook"
@@ -87,19 +97,84 @@ type Result struct {
 	Ignored  string // accepted 时为空;否则为 ignored 原因枚举
 }
 
-// Delivery 是从 HTTP 请求解析出的 webhook 投递(头 + 原始 body)。
-// RawBody 是验签所需的原始字节(签名模式按 Gitee 文档对 timestamp+"\n"+secret 计算,
-// 不依赖 body;但 body 仍用于解析事件)。
+// Delivery 是一次 webhook 投递:路径 token + 请求头 + 原始 body。
+// 头由 HTTP 层以 HeaderLookup 适配(net/http.Header.Get),领域层据平台/项目配置
+// 决定取哪些头:事件名、投递 id、token 头名在不同平台(Gitee / 云效 Codeup / GitLab)
+// 前缀不同,且 token 头名可被项目配置覆盖。
+// RawBody 保留原始字节:签名模式按 Gitee 文档对 timestamp+"\n"+secret 计算,不依赖 body;
+// 但 body 仍用于解析事件。
 type Delivery struct {
-	Token      string
-	Event      string
-	TokenHdr   string // X-Gitee-Token 头(密码模式=明文密钥;签名模式=base64 HMAC)
-	Timestamp  string
-	DeliveryID string
-	RawBody    []byte
+	Token   string
+	Header  HeaderLookup
+	RawBody []byte
 }
 
-// Receiver 处理 Gitee webhook 投递:定位项目 → 解密密钥验签 → 解析/匹配 → 去重 → 创建运行。
+// HeaderLookup 按名取单个请求头值,大小写不敏感的语义由实现保证
+// (HTTP 层直接传 net/http.Header.Get)。nil 视为无任何头。
+type HeaderLookup func(name string) string
+
+// header 按候选名依次取首个非空头值(trim),用于抹平各平台头名差异。
+func (d Delivery) header(names ...string) string {
+	if d.Header == nil {
+		return ""
+	}
+	for _, n := range names {
+		if v := strings.TrimSpace(d.Header(n)); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// 运行记录里的触发来源标签(不参与鉴权)。
+const (
+	actorGitee  = "gitee"
+	actorCodeup = "codeup"
+	actorGitlab = "gitlab"
+)
+
+// 各平台同义头的候选名(按优先级)。
+var (
+	eventHeaders    = []string{HeaderGiteeEvent, HeaderCodeupEvent, HeaderGitlabEvent}
+	deliveryHeaders = []string{HeaderGiteeDelivery, HeaderCodeupDelivery}
+	// tokenHeaders 是未配置自定义头名时的内置回退链(Gitee 优先,兼容历史)。
+	tokenHeaders = []string{HeaderGiteeToken, HeaderCodeupToken, HeaderGitlabToken}
+)
+
+// resolveTokenHeader 返回本次投递应校验的 token 头名与值:
+//   - 项目配了自定义头名 → 只认该头(用户明确指定,不做回退,避免歧义与误配);
+//   - 未配置 → 按内置回退链 tokenHeaders 取首个非空头。
+//
+// 头名一并返回:运行记录里的来源标签据此判定(见 actorOf)。
+func resolveTokenHeader(d Delivery, configured string) (name, value string) {
+	if h := strings.TrimSpace(configured); h != "" {
+		return h, d.header(h)
+	}
+	for _, n := range tokenHeaders {
+		if v := d.header(n); v != "" {
+			return n, v
+		}
+	}
+	return tokenHeaders[0], ""
+}
+
+// actorOf 判定触发来源平台(仅用于运行记录展示的来源标签,不参与鉴权)。
+//   - 出现云效 Codeup 头 → codeup;
+//   - 出现 GitLab 事件头 / token 走 X-Gitlab-Token → gitlab;
+//   - 否则 gitee。
+func actorOf(d Delivery, tokenHeaderName string) string {
+	switch {
+	case d.header(HeaderCodeupEvent, HeaderCodeupDelivery, HeaderCodeupToken) != "":
+		return actorCodeup
+	case d.header(HeaderGitlabEvent) != "" || strings.EqualFold(strings.TrimSpace(tokenHeaderName), HeaderGitlabToken):
+		return actorGitlab
+	default:
+		return actorGitee
+	}
+}
+
+// Receiver 处理 webhook 投递(Gitee / 云效 Codeup / GitLab 兼容头):
+// 定位项目 → 解密密钥验签 → 解析/匹配 → 去重 → 创建运行。
 // 它复用 trigger 包内部的密钥解密(经 vault.OpenSecret),不经任何对外暴露明文的接口。
 type Receiver struct {
 	db     *sql.DB
@@ -130,30 +205,38 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 	// 解密后的明文密钥用完即清零(防驻留)。
 	defer zero(secret)
 
-	mode, ok := verifySignature(d, secret)
+	// 从请求头解析本次投递的关注字段:事件名与投递 id 抹平平台头名差异,
+	// token 头名可被项目配置覆盖(见 resolveTokenHeader)。
+	event := d.header(eventHeaders...)
+	timestamp := d.header(HeaderGiteeTimestamp)
+	deliveryID := d.header(deliveryHeaders...)
+
+	tokenHeaderName, tokenValue := resolveTokenHeader(d, cfg.TokenHeader)
+
+	mode, ok := verifySignature(tokenValue, timestamp, secret)
 	if !ok {
 		return nil, ErrUnauthorized
 	}
 	// 防重放时间窗:签名模式必须带新鲜 timestamp(缺失/超窗 → 401);
 	// 密码模式若带 timestamp 也校验(Gitee 密码模式通常不带,缺失则放行)。
-	if !timestampFresh(d.Timestamp, mode) {
+	if !timestampFresh(timestamp, mode) {
 		return nil, ErrUnauthorized
 	}
 
 	// 解析事件 → 是否订阅。
-	subscribed := eventSubscribed(d.Event, cfg.Events)
+	subscribed := eventSubscribed(event, cfg.Events)
 	parsed := parsePayload(d.RawBody)
 
-	// 去重键:优先 X-Gitee-Delivery;缺失时回退 event+branch+commit 派生键。
-	deliveryKey := strings.TrimSpace(d.DeliveryID)
+	// 去重键:优先投递 id 头;缺失时回退 event+branch+commit 派生键。
+	deliveryKey := deliveryID
 	if deliveryKey == "" {
-		deliveryKey = derivedKey(d.Event, parsed.Branch, parsed.Commit)
+		deliveryKey = derivedKey(event, parsed.Branch, parsed.Commit)
 	}
 
 	// 统一去重:所有路径(未订阅 / 未匹配 record|ignore / 命中)都先抢占同一 dedup claim,
 	// 同一 delivery 幂等(UNIQUE 约束并发安全)。这避免「未匹配/record 投递改 delivery_id
 	// 即无限灌库」——同 delivery 只入一行,重复投递一律 duplicate,不再无界增长。
-	recID, dup, err := rc.claim(ctx, cfg.ProjectID, deliveryKey, d.Event, parsed.Branch, parsed.Commit)
+	recID, dup, err := rc.claim(ctx, cfg.ProjectID, deliveryKey, event, parsed.Branch, parsed.Commit)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +272,7 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 	runID, err := rc.runner.CreateWebhookRun(ctx, cfg.ProjectID, RunRequest{
 		Branch:                  parsed.Branch,
 		Commit:                  parsed.Commit,
-		Actor:                   "gitee",
+		Actor:                   actorOf(d, tokenHeaderName),
 		ResolvedEnvironment:     mapping.Environment,
 		ResolvedTargetServerIDs: mapping.TargetServerIDs,
 	})
@@ -249,9 +332,9 @@ func (rc *Receiver) loadForVerify(ctx context.Context, token string) (*Config, [
 	)
 	err := rc.db.QueryRowContext(ctx,
 		`SELECT project_id, webhook_token, webhook_secret_ciphertext, events_json,
-		        branch_mappings_json, unmatched_policy, path_filters_json
+		        branch_mappings_json, unmatched_policy, path_filters_json, token_header
 		 FROM pipeline_triggers WHERE webhook_token = ?`, token,
-	).Scan(&cfg.ProjectID, &cfg.WebhookToken, &sealed, &eventsJSON, &mappingsJSON, &cfg.UnmatchedPolicy, &pathFiltersJSON)
+	).Scan(&cfg.ProjectID, &cfg.WebhookToken, &sealed, &eventsJSON, &mappingsJSON, &cfg.UnmatchedPolicy, &pathFiltersJSON, &cfg.TokenHeader)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, ErrTokenNotFound
@@ -330,29 +413,30 @@ const (
 	modeSignature = "signature"
 )
 
-// verifySignature 校验 Gitee webhook 签名,密码模式或签名模式其一通过即可(恒定时间比较)。
-//   - 密码模式:X-Gitee-Token == 明文密钥。
-//   - 签名模式:base64(HMAC-SHA256(key=secret, msg=timestamp+"\n"+secret)) == X-Gitee-Token。
+// verifySignature 校验 webhook 签名,密码模式或签名模式其一通过即可(恒定时间比较)。
+//   - 密码模式:请求头 token == 明文密钥。
+//   - 签名模式:base64(HMAC-SHA256(key=secret, msg=timestamp+"\n"+secret)) == 请求头 token。
 //
+// got 为本次投递 payload token 头值(头名由平台或项目配置决定,见 tokenHeaderValue)。
 // 返回 (命中模式, 是否通过)。secret 为空(未配置/解密失败由上层拦截)→ 一律失败。
-func verifySignature(d Delivery, secret []byte) (string, bool) {
+func verifySignature(got, timestamp string, secret []byte) (string, bool) {
 	if len(secret) == 0 {
 		return modeNone, false
 	}
-	got := []byte(strings.TrimSpace(d.TokenHdr))
-	if len(got) == 0 {
+	gotB := []byte(strings.TrimSpace(got))
+	if len(gotB) == 0 {
 		return modeNone, false
 	}
 	// 密码模式:明文密钥直接相等。
-	if subtle.ConstantTimeCompare(got, secret) == 1 {
+	if subtle.ConstantTimeCompare(gotB, secret) == 1 {
 		return modePassword, true
 	}
 	// 签名模式:HMAC-SHA256(timestamp+"\n"+secret) base64。
-	msg := strings.TrimSpace(d.Timestamp) + "\n" + string(secret)
+	msg := strings.TrimSpace(timestamp) + "\n" + string(secret)
 	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(msg))
 	want := []byte(base64.StdEncoding.EncodeToString(mac.Sum(nil)))
-	if subtle.ConstantTimeCompare(got, want) == 1 {
+	if subtle.ConstantTimeCompare(gotB, want) == 1 {
 		return modeSignature, true
 	}
 	return modeNone, false

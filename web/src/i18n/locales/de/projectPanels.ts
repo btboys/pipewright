@@ -23,7 +23,7 @@ export default {
     patternIllegal: 'Enthält unzulässige Zeichen; erlaubt sind nur Buchstaben, Ziffern, / - _ . * ? [ ]',
 
     webhookTitle: 'Webhook-Anbindung',
-    webhookSub: 'Code-Plattform · Gitee',
+    webhookSub: 'Code-Plattform · Gitee / Alibaba Cloud Codeup',
     endpointLabel: 'Empfangs-Endpunkt',
     copied: 'Kopiert',
     copyUrlAria: 'Webhook-URL kopieren',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: 'Signatur-Schlüssel zurücksetzen',
     reset: 'Zurücksetzen',
     pushConfigLabel: 'Push-Konfiguration',
-    pushConfigHint: 'Im Gitee-Repository → Verwalten → WebHooks die obige Adresse und den Schlüssel einfügen und die Ereignisse Push / Tag Push / Release / Pull Request markieren.',
+    pushConfigHint: 'Im Gitee-Repository → Verwalten → WebHooks die obige Adresse und den Schlüssel einfügen und die Ereignisse Push / Tag Push / Release / Pull Request markieren. Derselbe Endpunkt funktioniert auch mit Alibaba Cloud Codeup (Ereignisnamen wie bei Gitee; der Token wird über den Header X-Codeup-Token oder X-Gitlab-Token übertragen).',
+    tokenHeaderLabel: 'Token-Prüfheader',
+    tokenHeaderPlaceholder: 'Leer lassen für Auto-Erkennung',
+    tokenHeaderHint: 'Leer = Token-Header von Gitee / Alibaba Cloud Codeup / GitLab automatisch erkennen (X-Gitee-Token, X-Codeup-Token, X-Gitlab-Token); bei Angabe wird nur dieser Header geprüft (z. B. X-Codeup-Token).',
 
     eventsTitle: 'Auslöser-Ereignisse',
     eventsSub: 'Wählen Sie, welche Ereignisse einen Pipeline-Lauf erzeugen',

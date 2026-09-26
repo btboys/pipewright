@@ -23,7 +23,7 @@ export default {
     patternIllegal: 'Contiene caracteres no permitidos; solo se permiten letras, dígitos, / - _ . * ? [ ]',
 
     webhookTitle: 'Conexión de Webhook',
-    webhookSub: 'Plataforma de código · Gitee',
+    webhookSub: 'Plataforma de código · Gitee / Alibaba Cloud Codeup',
     endpointLabel: 'Endpoint receptor',
     copied: 'Copiado',
     copyUrlAria: 'Copiar URL del webhook',
@@ -37,7 +37,10 @@ export default {
     resetSecretAria: 'Restablecer clave de firma',
     reset: 'Restablecer',
     pushConfigLabel: 'Configuración de push',
-    pushConfigHint: 'En el repositorio de Gitee → Administrar → WebHooks, pega la dirección y la clave de arriba y marca los eventos Push / Tag Push / Release / Pull Request.',
+    pushConfigHint: 'En el repositorio de Gitee → Administrar → WebHooks, pega la dirección y la clave de arriba y marca los eventos Push / Tag Push / Release / Pull Request. El mismo endpoint también funciona con Alibaba Cloud Codeup (los nombres de evento coinciden con Gitee; el token se pasa por la cabecera X-Codeup-Token o X-Gitlab-Token).',
+    tokenHeaderLabel: 'Cabecera de verificación del token',
+    tokenHeaderPlaceholder: 'Vacío para autodetección',
+    tokenHeaderHint: 'Vacío = autodetectar la cabecera del token de Gitee / Alibaba Cloud Codeup / GitLab (X-Gitee-Token, X-Codeup-Token, X-Gitlab-Token); si se indica, solo se verifica esa cabecera (p. ej. X-Codeup-Token).',
 
     eventsTitle: 'Eventos del Disparador',
     eventsSub: 'Elige qué eventos crean una ejecución de pipeline',

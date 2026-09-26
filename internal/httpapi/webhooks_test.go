@@ -220,6 +220,102 @@ func TestWebhookDuplicateDelivery(t *testing.T) {
 	}
 }
 
+// TestWebhookCodeupHeadersAccept 验证云效 Codeup 投递被等价接受:事件/投递 id 走
+// X-Codeup-*,token 经 X-Codeup-Token 或 X-Gitlab-Token 传递,载荷为 GitLab 风格。
+func TestWebhookCodeupHeadersAccept(t *testing.T) {
+	// Codeup push 载荷与 Gitee 同形(object_kind/ref/after/checkout_sha/commits)。
+	body := []byte(`{"object_kind":"push","ref":"refs/heads/main","after":"abc123","checkout_sha":"abc123","commits":[{"id":"abc123","added":["a.txt"],"modified":[],"removed":[]}]}`)
+	for _, tokenHdr := range []string{"X-Codeup-Token", "X-Gitlab-Token"} {
+		t.Run(tokenHdr, func(t *testing.T) {
+			srv, _, _, _, token, secret := setupWebhookServer(t)
+			req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/webhooks/"+token, bytes.NewReader(body))
+			if err != nil {
+				t.Fatalf("new request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Codeup-Event", "Push Hook")
+			req.Header.Set(tokenHdr, secret)
+			req.Header.Set("X-Codeup-Delivery", "codeup-delivery-1")
+			resp, err := (&http.Client{}).Do(req)
+			if err != nil {
+				t.Fatalf("do webhook: %v", err)
+			}
+			raw, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", resp.StatusCode, raw)
+			}
+			var out map[string]any
+			_ = json.Unmarshal(raw, &out)
+			if out["accepted"] != true || out["runId"] == "" {
+				t.Fatalf("expected accepted:true with runId, got %s", raw)
+			}
+		})
+	}
+}
+
+// TestWebhookCustomTokenHeader 验证自定义 token 校验请求头:
+// 经 PUT /trigger 保存后只认该头(内置头即使带正确密钥也不通过);GET 回读一致;
+// 非法头名 → 422 invalid_token_header。
+func TestWebhookCustomTokenHeader(t *testing.T) {
+	srv, client, csrf, projID, token, secret := setupWebhookServer(t)
+	putURL := srv.URL + "/api/projects/" + projID + "/trigger"
+	base := `"events":{"push":true},"branchMappings":[{"branchPattern":"main","environment":"prod"}],"unmatchedPolicy":"ignore"`
+
+	// 非法头名(含空格)→ 422,且错误码可定位。
+	resp := doJSON(t, client, http.MethodPut, putURL, csrf, `{`+base+`,"tokenHeader":"Bad Header"}`)
+	raw, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for invalid token header, got %d: %s", resp.StatusCode, raw)
+	}
+
+	// 合法头名 → 200,响应回显。
+	resp = doJSON(t, client, http.MethodPut, putURL, csrf, `{`+base+`,"tokenHeader":"X-Custom-Token"}`)
+	raw, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !bytes.Contains(raw, []byte(`"tokenHeader":"X-Custom-Token"`)) {
+		t.Fatalf("expected 200 with tokenHeader echoed, got %d: %s", resp.StatusCode, raw)
+	}
+
+	body := []byte(`{"ref":"refs/heads/main","after":"custom1"}`)
+	post := func(headers map[string]string) *http.Response {
+		req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/webhooks/"+token, bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		r, err := (&http.Client{}).Do(req)
+		if err != nil {
+			t.Fatalf("do webhook: %v", err)
+		}
+		return r
+	}
+
+	// 配了自定义头后不回退内置头:密钥只在内置头 → 401。
+	resp = post(map[string]string{"X-Gitee-Event": "Push Hook", "X-Gitee-Token": secret})
+	raw, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 when secret only in builtin header, got %d: %s", resp.StatusCode, raw)
+	}
+
+	// 自定义头带正确密钥 → accepted。
+	resp = post(map[string]string{"X-Gitee-Event": "Push Hook", "X-Custom-Token": secret})
+	raw, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, raw)
+	}
+	var out map[string]any
+	_ = json.Unmarshal(raw, &out)
+	if out["accepted"] != true || out["runId"] == "" {
+		t.Fatalf("expected accepted:true with runId, got %s", raw)
+	}
+}
+
 // TestWebhookBranchNoMatch 验证不匹配分支 → accepted:false。
 func TestWebhookBranchNoMatch(t *testing.T) {
 	srv, _, _, _, token, secret := setupWebhookServer(t)
