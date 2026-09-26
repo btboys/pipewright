@@ -48,6 +48,9 @@ export default {
   fieldArtifactTypeLabel: 'デプロイ成果物タイプ',
   fieldArtifactTypeHint:
     'この run がイメージとファイル成果物を同時に出力する場合にどれを選ぶか。イメージはターゲットで docker pull → 新コンテナ起動 → ヘルスチェック → 失敗時に前のイメージへロールバック',
+  fieldArtifactNameLabel: 'デプロイする成果物の指定(任意)',
+  fieldArtifactNameHint:
+    'この run が同種の成果物を複数出力する場合(複数のフロントエンド dist など)、このノードがデプロイする1件を選択します — 選択肢は各ビルドノードの「成果物パス」で宣言した名前(例 fxy_admin_front=dist)。空 = 成果物タイプで自動選択。選んだ名前がこの run に無い場合はこのノードが失敗し、選択可能な名前を列挙します(別の成果物を黙ってデプロイすることはありません)',
   fieldDeployPathLabel: 'デプロイパス',
   fieldDeployPathHint:
     'ファイル成果物:<デプロイパス>/releases/<runId>/ に公開、current シンボリックリンクを今回のリリースへアトミックに切替(ゼロダウンタイム、旧リリースはロールバック用に保持)',

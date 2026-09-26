@@ -48,6 +48,9 @@ export default {
   fieldArtifactTypeLabel: 'Bereitzustellender Artefakttyp',
   fieldArtifactTypeHint:
     'Welches gewählt wird, wenn dieser Lauf sowohl ein Image als auch Datei-Artefakte ausgibt; ein Image geht per docker pull auf dem Ziel → neuen Container starten → Health-Check → bei Fehler Rollback auf das vorherige Image',
+  fieldArtifactNameLabel: 'Welches Artefakt deployen (optional)',
+  fieldArtifactNameHint:
+    'Wenn dieser Lauf mehrere Artefakte desselben Typs erzeugt (z. B. mehrere Frontend-Dists), wähle aus, welches dieser Knoten deployt — die Optionen sind die in den Artefaktpfaden der Build-Knoten deklarierten Namen (z. B. fxy_admin_front=dist); leer = automatisch nach Artefakttyp wählen. Ein Name, den dieser Lauf nicht erzeugt hat, lässt diesen Knoten fehlschlagen und listet die verfügbaren Namen auf, statt still ein anderes Artefakt zu deployen',
   fieldDeployPathLabel: 'Bereitstellungspfad',
   fieldDeployPathHint:
     'Datei-Artefakte: veröffentlicht unter <Bereitstellungspfad>/releases/<runId>/, der current-Symlink wechselt atomar auf diese Version (ohne Ausfallzeit, alte Versionen bleiben für Rollback erhalten)',

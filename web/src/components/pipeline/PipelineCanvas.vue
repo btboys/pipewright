@@ -12,6 +12,7 @@ import JobTypePicker from './JobTypePicker.vue'
 import type { CustomNode } from '../../api/customNodes'
 import { jobTypeLabel, getJobTypeSpec } from './jobConfigSchema'
 import { hasAnyNeeds } from './stageDeps'
+import { splitArtifactLine } from './stepCompile'
 import './pipeline.css'
 
 // ─── Props / emits ────────────────────────────────────────────────────────────
@@ -52,6 +53,22 @@ const selectedJob = computed<PipelineJob | null>(() => {
 const selectedStage = computed<PipelineStage | null>(() => {
   if (!selectedJobId.value) return null
   return props.stages.find((s) => s.jobs.some((j) => j.id === selectedJobId.value)) ?? null
+})
+
+// 产物名候选:全流水线各节点 artifactPath 里显式声明的名称(`名称=路径`)—— 一次构建可能产出多件
+// 同类产物(多个前端 dist 等),部署节点靠这个名字指定部署哪一件。列全部而非只列上游:省掉一遍
+// 跨阶段祖先图计算,候选多几个不影响;手填(通配/自动命名)同样允许。
+const artifactNames = computed<string[]>(() => {
+  const names = new Set<string>()
+  for (const stage of props.stages) {
+    for (const job of stage.jobs) {
+      for (const line of (job.config?.artifactPath ?? '').replace(/\r/g, '').split('\n')) {
+        const { name } = splitArtifactLine(line)
+        if (name) names.add(name)
+      }
+    }
+  }
+  return [...names].sort()
 })
 
 function selectJob(jobId: string): void {
@@ -408,6 +425,7 @@ function handleDrawerUpdate(patch: Partial<PipelineJob>): void {
       :credentials="props.credentials"
       :servers="props.servers"
       :channels="props.channels"
+      :artifact-names="artifactNames"
       @close="closeDrawer"
       @update="handleDrawerUpdate"
       @change-type="requestChangeType"

@@ -48,6 +48,9 @@ export default {
   fieldArtifactTypeLabel: 'Tipo de artefacto a desplegar',
   fieldArtifactTypeHint:
     'Cuál elegir cuando esta ejecución emite tanto una imagen como artefactos de archivo; una imagen va mediante docker pull en el destino → iniciar nuevo contenedor → comprobación de salud → revertir a la imagen anterior si falla',
+  fieldArtifactNameLabel: 'Qué artefacto desplegar (opcional)',
+  fieldArtifactNameHint:
+    'Cuando esta ejecución genera varios artefactos del mismo tipo (p. ej. varios dist de frontend), elige el que despliega este nodo — las opciones son los nombres declarados en las rutas de artefactos de cada nodo de build (p. ej. fxy_admin_front=dist); vacío = elegir automáticamente por tipo. Un nombre que esta ejecución no produjo falla este nodo y lista los nombres disponibles, en lugar de desplegar otro artefacto en silencio',
   fieldDeployPathLabel: 'Ruta de despliegue',
   fieldDeployPathHint:
     'Artefactos de archivo: se publican en <ruta de despliegue>/releases/<runId>/, el enlace simbólico current cambia de forma atómica a esta versión (sin tiempo de inactividad, las versiones antiguas se conservan para revertir)',

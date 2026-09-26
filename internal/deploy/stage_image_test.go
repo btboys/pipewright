@@ -2,6 +2,8 @@ package deploy
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/btboys/pipewright/internal/run"
@@ -371,27 +373,44 @@ func TestPickStageArtifact(t *testing.T) {
 	img := run.Artifact{Type: run.ArtifactImage, Reference: "img:1"}
 	dist := run.Artifact{Type: run.ArtifactDist, Reference: "dist"}
 	jar := run.Artifact{Type: run.ArtifactJar, Reference: "app.jar"}
+	// 多件同类产物(一次构建产出多个前端 dist)——按名指定的核心场景。
+	distA := run.Artifact{Type: run.ArtifactDist, Name: "fxy_admin_front", Reference: "fxy_admin_front/"}
+	distB := run.Artifact{Type: run.ArtifactDist, Name: "ym_client_front", Reference: "ym_client_front/"}
+	distC := run.Artifact{Type: run.ArtifactDist, Name: "fxy_client_front", Reference: "fxy_client_front/"}
+	multi := []run.Artifact{distA, distB, distC}
 
 	cases := []struct {
-		name   string
-		arts   []run.Artifact
-		prefer string
-		want   string // 期望选中的 Type;"" = nil
+		name     string
+		arts     []run.Artifact
+		prefer   string
+		wantName string
+		want     string // 期望选中的 Type;"" = nil
+		wantRef  string // 非空则同时断言 Reference(按名选取时用)
 	}{
-		{"empty", nil, "", ""},
-		{"image only / no prefer", []run.Artifact{img}, "", run.ArtifactImage},
-		{"file only / no prefer", []run.Artifact{dist}, "", run.ArtifactDist},
-		{"both / no prefer → file first", []run.Artifact{img, dist}, "", run.ArtifactDist},
-		{"both / prefer image", []run.Artifact{img, dist}, "image", run.ArtifactImage},
-		{"both / prefer image (order swapped)", []run.Artifact{dist, img}, "image", run.ArtifactImage},
-		{"prefer image but none → fall back file", []run.Artifact{dist}, "image", run.ArtifactDist},
-		{"prefer jar exact", []run.Artifact{dist, jar}, "jar", run.ArtifactJar},
-		{"prefer dist but only jar → any release", []run.Artifact{jar}, "dist", run.ArtifactJar},
-		{"unknown type skipped", []run.Artifact{{Type: "weird"}}, "", ""},
+		{"empty", nil, "", "", "", ""},
+		{"image only / no prefer", []run.Artifact{img}, "", "", run.ArtifactImage, ""},
+		{"file only / no prefer", []run.Artifact{dist}, "", "", run.ArtifactDist, ""},
+		{"both / no prefer → file first", []run.Artifact{img, dist}, "", "", run.ArtifactDist, ""},
+		{"both / prefer image", []run.Artifact{img, dist}, "image", "", run.ArtifactImage, ""},
+		{"both / prefer image (order swapped)", []run.Artifact{dist, img}, "image", "", run.ArtifactImage, ""},
+		{"prefer image but none → fall back file", []run.Artifact{dist}, "image", "", run.ArtifactDist, ""},
+		{"prefer jar exact", []run.Artifact{dist, jar}, "jar", "", run.ArtifactJar, ""},
+		{"prefer dist but only jar → any release", []run.Artifact{jar}, "dist", "", run.ArtifactJar, ""},
+		{"unknown type skipped", []run.Artifact{{Type: "weird"}}, "", "", "", ""},
+		// 多件同类产物:按名指定必须选中**那一件**,而不是首个。
+		{"multi distinct / name picks the named one (not first)", multi, "", "ym_client_front", run.ArtifactDist, "ym_client_front/"},
+		{"multi distinct / name picks last", multi, "", "fxy_client_front", run.ArtifactDist, "fxy_client_front/"},
+		{"multi distinct / name wins over type prefer", multi, "image", "fxy_admin_front", run.ArtifactDist, "fxy_admin_front/"},
+		{"multi distinct / no name → first (既有行为)", multi, "dist", "", run.ArtifactDist, "fxy_admin_front/"},
+		// 按名指定但不存在 / 不可部署 → nil(诚实失败,绝不换一件部署)。
+		{"name missing", multi, "", "nope", "", ""},
+		{"name given but run has no artifacts", nil, "", "fxy_admin_front", "", ""},
+		{"name matches a non-deployable artifact", []run.Artifact{{Type: "weird", Name: "x"}}, "", "x", "", ""},
+		{"name blank → 类型偏好照常生效", multi, "jar", "  ", run.ArtifactDist, "fxy_admin_front/"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := pickStageArtifact(tc.arts, tc.prefer)
+			got := pickStageArtifact(tc.arts, tc.prefer, tc.wantName)
 			if tc.want == "" {
 				if got != nil {
 					t.Fatalf("want nil, got %+v", got)
@@ -401,6 +420,73 @@ func TestPickStageArtifact(t *testing.T) {
 			if got == nil || got.Type != tc.want {
 				t.Fatalf("want %s, got %+v", tc.want, got)
 			}
+			if tc.wantRef != "" && got.Reference != tc.wantRef {
+				t.Fatalf("want reference %s, got %+v", tc.wantRef, got)
+			}
 		})
 	}
+}
+
+// TestDeployForStagePicksNamedArtifact 一次构建产出多件同类产物(dist)时,节点按 cfg["artifactName"]
+// 指定的那件部署到目标机 —— 端到端断言(路径取自该产物名),而非只测选取函数。
+func TestDeployForStagePicksNamedArtifact(t *testing.T) {
+	db := testDB(t)
+	rsvc := run.New(db)
+	tgt := &stubTarget{}
+	srv := seedServer(t, tgt, "web-admin")
+	// seed 的那件名为 "shop";再补一件 "ym_client_front"(同类型,排在后面)。
+	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactDist, "dist/shop.tar.gz")
+	addArtifact(t, rsvc, runID, run.ArtifactDist, "ym_client_front", "dist/ym.tar.gz")
+
+	svc := New(tgt, rsvc)
+	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID},
+		map[string]string{"artifactName": "ym_client_front"}, "")
+	if err != nil {
+		t.Fatalf("DeployForStage: %v", err)
+	}
+	if len(res) != 1 || res[0].Status != run.TargetSuccess {
+		t.Fatalf("want 1 success, got %+v", res)
+	}
+	// 默认发布根 = <defaultDeployRoot>/<产物名>,故命令里应出现指定产物名 —— 而不是首个产物 "shop"。
+	if !hasPathContaining(tgt.calls, "ym_client_front") {
+		t.Fatalf("应按名部署 ym_client_front: %v", tgt.calls)
+	}
+	if hasPathContaining(tgt.calls, "/shop") {
+		t.Fatalf("不应部署未指定的 shop 产物: %v", tgt.calls)
+	}
+}
+
+// TestDeployForStageUnknownArtifactNameFails 按名指定但该 run 没有这件产物 → 部署失败(ErrArtifactNotFound),
+// **不退回**「随便挑一件」:错误信息列出可选产物名,便于用户改配置。
+func TestDeployForStageUnknownArtifactNameFails(t *testing.T) {
+	db := testDB(t)
+	rsvc := run.New(db)
+	tgt := &stubTarget{}
+	srv := seedServer(t, tgt, "web-admin")
+	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactDist, "dist/shop.tar.gz")
+
+	svc := New(tgt, rsvc)
+	_, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID},
+		map[string]string{"artifactName": "fxy_admin_front"}, "")
+	if !errors.Is(err, ErrArtifactNotFound) {
+		t.Fatalf("want ErrArtifactNotFound, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "fxy_admin_front") || !strings.Contains(err.Error(), "shop") {
+		t.Fatalf("错误信息应含指定名 + 可选产物名, got %v", err)
+	}
+	if len(tgt.calls) != 0 {
+		t.Fatalf("不应向目标机发任何命令: %v", tgt.calls)
+	}
+}
+
+// hasPathContaining 报告命令序列里是否有任一条命令的参数包含子串 sub。
+func hasPathContaining(calls [][]string, sub string) bool {
+	for _, c := range calls {
+		for _, arg := range c {
+			if strings.Contains(arg, sub) {
+				return true
+			}
+		}
+	}
+	return false
 }

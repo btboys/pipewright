@@ -569,8 +569,35 @@ func TestRunDeployJobPassesImageParams(t *testing.T) {
 	}
 }
 
-// ─── 阶段内 job 级 DAG 并发执行(横串竖并)─────────────────────────────────────────
+// TestRunDeployJobPassesArtifactName 证部署节点把 artifactName 透传给 deploy.DeployForStage
+// (一个 run 产出多件同类产物时指定本节点部署哪一件),且与 deployPath 一样支持 {{参数}} 渲染。
+func TestRunDeployJobPassesArtifactName(t *testing.T) {
+	dep := &stubStageDeployer{}
+	b := &Builder{deployer: dep}
+	jb := pipeline.Job{ID: "d", Name: "部署", Type: "deploy_ssh", Config: map[string]any{
+		"serverId":     "srv-1",
+		"artifactName": "{{app}}-dist",
+	}}
+	if err := b.runDeployJob(context.Background(), &fakeReporter{}, jb, "run-1",
+		map[string]string{"app": "fxy_admin"}); err != nil {
+		t.Fatalf("runDeployJob err: %v", err)
+	}
+	if got := dep.gotCfg["artifactName"]; got != "fxy_admin-dist" {
+		t.Fatalf("cfg[artifactName] = %q, want fxy_admin-dist(完整 cfg=%+v)", got, dep.gotCfg)
+	}
+	// 未配时不得混入空键(保持「按类型自动挑」的既有行为)。
+	dep2 := &stubStageDeployer{}
+	b2 := &Builder{deployer: dep2}
+	jb2 := pipeline.Job{ID: "d", Name: "部署", Type: "deploy_ssh", Config: map[string]any{"serverId": "srv-1"}}
+	if err := b2.runDeployJob(context.Background(), &fakeReporter{}, jb2, "run-1", nil); err != nil {
+		t.Fatalf("runDeployJob err: %v", err)
+	}
+	if _, ok := dep2.gotCfg["artifactName"]; ok {
+		t.Fatalf("空 artifactName 不应入 cfg:%+v", dep2.gotCfg)
+	}
+}
 
+// ─── 阶段内 job 级 DAG 并发执行(横串竖并)─────────────────────────────────────────
 // orderDriver 线程安全记录 RunToolchain 的调用顺序(按 image),并可按 image 配退出码 + 阻塞时长。
 type orderDriver struct {
 	mu    sync.Mutex

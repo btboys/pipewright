@@ -28,6 +28,8 @@ export type FieldKind =
   | 'credential'
   | 'server'
   | 'channel'
+  /** 产物名选择器(选项 = 本流水线各节点声明过的产物名) */
+  | 'artifact'
 
 export interface SelectOption {
   value: string
@@ -225,6 +227,16 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     kind: 'select',
     options: DEPLOY_ARTIFACT_OPTIONS,
     get hint() { return t('pipelineJob.fieldArtifactTypeHint') },
+  },
+  {
+    // 一次构建产出多件同类产物(如多个前端 dist)时,用它指定本节点部署哪一件。
+    // 选项来自本流水线各节点 artifactPath 里显式声明的名称(`名称=路径`)。
+    key: 'artifactName',
+    get label() { return t('pipelineJob.fieldArtifactNameLabel') },
+    kind: 'artifact',
+    get hint() { return t('pipelineJob.fieldArtifactNameHint') },
+    // 镜像产物按类型挑即可(镜像名 = 项目 slug,不存在多件可选)→ 只在文件/自动产物时露出。
+    when: (c) => c.artifactType !== 'image',
   },
   {
     key: 'deployPath',

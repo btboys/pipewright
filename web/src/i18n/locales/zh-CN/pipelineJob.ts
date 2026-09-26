@@ -48,6 +48,9 @@ export default {
   fieldArtifactTypeLabel: '部署产物类型',
   fieldArtifactTypeHint:
     '本 run 同时产出镜像与文件产物时挑哪件;镜像走目标机 docker pull → 起新容器 → 健康检查 → 失败回滚上一镜像',
+  fieldArtifactNameLabel: '部署哪个产物(可选)',
+  fieldArtifactNameHint:
+    '本 run 产出多件同类产物时(如多个前端 dist),从下拉里选本节点部署哪一件 —— 选项来自各构建节点「产物路径」里声明的名称(如 fxy_admin_front=dist);留空=按产物类型自动挑。选中的名字本 run 没产出 → 本节点失败并列出可选名字,绝不改发别的产物',
   fieldDeployPathLabel: '部署路径',
   fieldDeployPathHint:
     '文件产物:发布到 <部署路径>/releases/<runId>/,current 软链原子切到本次发布(零停机,旧发布保留供回滚)',

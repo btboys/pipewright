@@ -607,12 +607,22 @@ func (b *Builder) runDeployJob(ctx context.Context, rep dagrun.StageReporter, jb
 			cfg[k] = v
 		}
 	}
+	// 指定产物(cfg["artifactName"]):一个 run 可能产出多件同类产物(如多个前端 dist),节点用它
+	// 精确指定本机部署哪一件 → deploy.DeployForStage 按名挑;支持 {{param}}(与 deployPath 一致)。
+	// 名字不存在时部署直接失败(不退回「随便挑一件」),避免把错的产物发上线。
+	if an := renderTemplate(cfgString(jb.Config, "artifactName"), params); an != "" {
+		cfg["artifactName"] = an
+	}
 	strategy := cfgString(jb.Config, "strategy")
 	stratLabel := strategy
 	if stratLabel == "" {
 		stratLabel = "rolling(默认)"
 	}
-	_ = rep.Log(ctx, streamStdout, fmt.Sprintf("→ SSH 部署本次产物到服务器 %s(策略 %s)…", serverID, stratLabel))
+	artLabel := "本次产物"
+	if an := cfg["artifactName"]; an != "" {
+		artLabel = fmt.Sprintf("产物「%s」", an)
+	}
+	_ = rep.Log(ctx, streamStdout, fmt.Sprintf("→ SSH 部署%s到服务器 %s(策略 %s)…", artLabel, serverID, stratLabel))
 	// 把目标机真实执行的命令 + stdout/stderr 实时回流到本部署步骤日志(脱敏由 sink 侧 Masker 兜底)。
 	dctx := deploy.WithCmdLog(ctx, func(stream, text string) { _ = rep.Log(ctx, stream, text) })
 	results, err := b.deployer.DeployForStage(dctx, runID, []string{serverID}, cfg, strategy)

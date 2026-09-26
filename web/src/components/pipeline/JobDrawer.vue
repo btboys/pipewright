@@ -32,6 +32,8 @@ const props = defineProps<{
   credentials?: Credential[]
   servers?: Server[]
   channels?: NotificationChannel[]
+  /** 本流水线各节点声明过的产物名(`名称=路径`),供部署节点的产物名候选下拉。 */
+  artifactNames?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -51,7 +53,6 @@ interface KVRow {
 }
 
 let _kvSeq = 0
-
 const localName    = ref(props.job.name)
 const localType    = ref(props.job.type)
 const localSummary = ref(props.job.summary)
@@ -224,6 +225,17 @@ function selectValue(field: JobField): string {
   const v = typedConfig.value[field.key]
   if (v) return v
   return field.options?.[0]?.value ?? ''
+}
+
+/**
+ * 产物名选择器的选项:父级汇总的声明名;当前值若不在其中(通配/自动命名/旧配置/YAML 手写)也补进去,
+ * 否则选择框会显示成「自动」而配置里其实有值 —— 用户一改就以为没设过。
+ */
+function artifactOptions(key: string): string[] {
+  const names = props.artifactNames ?? []
+  const cur = fieldValue(key).trim()
+  if (cur && !names.includes(cur)) return [cur, ...names]
+  return names
 }
 
 function updateLocal(key: string, value: string): void {
@@ -546,6 +558,18 @@ async function confirmSave(): Promise<void> {
           />
           <span>{{ field.hint || t('pipelineJob.toggleEnable') }}</span>
         </label>
+
+        <!-- 产物名选择(选项 = 本流水线各节点声明过的产物名;留空 = 按类型自动挑) -->
+        <select
+          v-else-if="field.kind === 'artifact'"
+          :value="selectValue(field)"
+          class="drawer-select"
+          :aria-label="field.label"
+          @change="setField(field.key, ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">{{ t('pipelineJob.deployArtifactAuto') }}</option>
+          <option v-for="n in artifactOptions(field.key)" :key="n" :value="n">{{ n }}</option>
+        </select>
 
         <!-- number / text -->
         <input

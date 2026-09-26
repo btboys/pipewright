@@ -126,11 +126,12 @@ type Service interface {
 	// **不触碰已部署批次** → 据全量重算 run 终态 → 返回全量最新 targets。无 pending → ErrNoPendingTargets。
 	AbortDeploy(ctx context.Context, in AbortInput) ([]TargetResult, error)
 
-	// DeployForStage 是「流水线 deploy_ssh 节点」用的中途部署:取该 run 已产出的首个可发布产物
-	// (dist/jar/archive)→ 按策略部署到目标机 → 持久化每机结果(填 run-detail targets)。
+	// DeployForStage 是「流水线 deploy_ssh 节点」用的中途部署:按节点配置挑本 run 的一件可发布
+	// 产物(多件同类产物用 cfg["artifactName"] 按名精确指定,否则按 cfg["artifactType"] 选类型;
+	// 命中同类型的**首个**产物)→ 按策略部署到目标机 → 持久化每机结果(填 run-detail targets)。
 	// **不校验 run 状态**(流水线执行中 run 仍 running)、**不置 run 终态**(终态由 dag 调度器控制)。
-	// 无可发布产物 → ErrArtifactNotFound;服务器不存在 → ErrServerNotFound;有目标失败 → 返回 error
-	// 令该阶段失败、阻断下游(复用 dagrun「阶段失败→下游不执行」)。
+	// 无可发布产物 / 按名指定的产物不存在 → ErrArtifactNotFound;服务器不存在 → ErrServerNotFound;
+	// 有目标失败 → 返回 error 令该阶段失败、阻断下游(复用 dagrun「阶段失败→下游不执行」)。
 	DeployForStage(ctx context.Context, runID string, serverIDs []string, cfg map[string]string, strategy string) ([]TargetResult, error)
 }
 
@@ -324,14 +325,19 @@ func (s *service) DeployForStage(ctx context.Context, runID string, serverIDs []
 		return s.runCommandOnly(ctx, runID, serverIDs, cfg)
 	}
 	// 取该 run 已产出的可部署产物。dist/jar/archive 走文件发布;image 走容器 pull→停旧起新→
-	// 健康→回滚(复用 image_release.go)。二者都在时按节点 cfg["artifactType"] 选(空 → 默认优先
-	// 文件发布,保持既有行为;显式 image → 选镜像)。选定后由 deployWithStrategy 据产物类型自动路由。
+	// 健康→回滚(复用 image_release.go)。一个 run 产出多件同类产物时,节点用 cfg["artifactName"]
+	// 精确指定部署哪一件;未指定才按 cfg["artifactType"] 选类型(空 → 默认优先文件发布,保持既有
+	// 行为;显式 image → 选镜像)。选定后由 deployWithStrategy 据产物类型自动路由。
 	arts, err := s.runs.ListArtifacts(ctx, runID)
 	if err != nil {
 		return nil, err
 	}
-	artifact := pickStageArtifact(arts, strings.TrimSpace(cfg["artifactType"]))
+	artifact := pickStageArtifact(arts, strings.TrimSpace(cfg["artifactType"]), cfg["artifactName"])
 	if artifact == nil {
+		if name := strings.TrimSpace(cfg["artifactName"]); name != "" {
+			return nil, fmt.Errorf("%w: 未找到名为 %q 的产物(本 run 可部署产物:%s)",
+				ErrArtifactNotFound, name, deployableArtifactNames(arts))
+		}
 		return nil, ErrArtifactNotFound
 	}
 
@@ -416,16 +422,42 @@ func deployableStageArtifact(a run.Artifact) bool {
 	return releaseModeArtifact(a) || a.Type == run.ArtifactImage
 }
 
+// deployableArtifactNames 列出该 run 可部署产物的名字(逗号分隔),供「按名指定但没命中」的失败
+// 信息用 —— 用户一眼看到可选的名字,不必翻运行详情对照。无 → "(无)"。
+func deployableArtifactNames(arts []run.Artifact) string {
+	names := make([]string, 0, len(arts))
+	for _, a := range arts {
+		if deployableStageArtifact(a) {
+			names = append(names, a.Name)
+		}
+	}
+	if len(names) == 0 {
+		return "(无)"
+	}
+	return strings.Join(names, ", ")
+}
+
 // pickStageArtifact 从该 run 的产物里挑「部署节点」要部署的一件,返回 nil = 无可部署产物。
 //
 // 选取规则(参数自由,不写死单一类型):
-//   - prefer == "image":优先选首个 image 产物;无 image → 退回首个文件发布产物(尽力部署)。
-//   - prefer 为文件类(dist/jar/archive):优先选该精确类型;无则退回任一文件发布产物。
-//   - prefer 空:默认优先文件发布产物(保持既有行为),无文件发布则退回 image。
+//   - wantName 非空:只在「可部署产物」中按 Name 精确匹配 —— 一次构建产出多件同类产物时
+//     (如多个前端 dist),节点用它指定这一台机器要部署哪一件。同名产物不存在 → nil:
+//     **诚实失败**,绝不悄悄挑一件别的产物部署(否则部署到的是错的产物,比失败更糟)。
+//   - 否则按 prefer 类型偏好:prefer == "image" 优先首个 image,无 → 退回首个文件发布产物;
+//     prefer 为文件类(dist/jar/archive)优先该精确类型,无 → 退回任一文件发布产物;
+//     prefer 空:默认优先文件发布产物(保持既有行为),无文件发布则退回 image。
 //
 // 任何情况下都只在「可部署产物」(deployableStageArtifact)中挑选;选定的类型由
 // deployWithStrategy 自动路由到文件发布 or 镜像编排。
-func pickStageArtifact(arts []run.Artifact, prefer string) *run.Artifact {
+func pickStageArtifact(arts []run.Artifact, prefer, wantName string) *run.Artifact {
+	if wantName = strings.TrimSpace(wantName); wantName != "" {
+		for i := range arts {
+			if arts[i].Name == wantName && deployableStageArtifact(arts[i]) {
+				return &arts[i]
+			}
+		}
+		return nil
+	}
 	prefer = strings.ToLower(prefer)
 	var firstImage, firstRelease, firstExact *run.Artifact
 	for i := range arts {

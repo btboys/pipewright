@@ -48,6 +48,9 @@ export default {
   fieldArtifactTypeLabel: 'Deploy artifact type',
   fieldArtifactTypeHint:
     'Which one to pick when this run emits both an image and file artifacts; an image goes via docker pull on the target → start new container → health check → roll back to the previous image on failure',
+  fieldArtifactNameLabel: 'Deploy which artifact (optional)',
+  fieldArtifactNameHint:
+    'When this run emits several artifacts of the same type (e.g. multiple frontend dists), pick the one this node deploys — the options are the names declared in each build node’s artifact paths (e.g. fxy_admin_front=dist); empty = pick automatically by artifact type. A name this run did not produce fails this node and lists the available names, instead of silently deploying another artifact',
   fieldDeployPathLabel: 'Deploy path',
   fieldDeployPathHint:
     'File artifacts: published to <deploy path>/releases/<runId>/, the current symlink atomically switches to this release (zero downtime, old releases kept for rollback)',
