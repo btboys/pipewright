@@ -700,3 +700,110 @@ func TestGlobMatch(t *testing.T) {
 		}
 	}
 }
+
+// --- 事件类型判定:头归一化 + 载荷 object_kind 兜底(云效 Codeup 不带事件头) ---
+
+func TestCanonicalEvent(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{"Push Hook", eventPush},
+		{"push", eventPush},         // GitLab / Codeup 系裸小写
+		{"Push", eventPush},         // 大小写无关
+		{"Tag Push Hook", eventTag}, //
+		{"tag_push", eventTag},      // 下划线形态
+		{"Merge Request Hook", eventMergeRequest},
+		{"merge_request", eventMergeRequest},
+		{"Release Hook", eventRelease},
+		{"", ""},
+		{"Note Hook", ""}, // 不认识 → 空(不猜)
+		{"unknown", ""},
+	}
+	for _, c := range cases {
+		if got := canonicalEvent(c.raw); got != c.want {
+			t.Errorf("canonicalEvent(%q) = %q, want %q", c.raw, got, c.want)
+		}
+	}
+}
+
+func TestEventFromPayload(t *testing.T) {
+	cases := []struct {
+		name string
+		p    parsedPayload
+		want string
+	}{
+		{"分支 push", parsedPayload{ObjectKind: "push", Ref: "refs/heads/main"}, eventPush},
+		{"推 tag 也报 push,靠 ref 区分", parsedPayload{ObjectKind: "push", Ref: "refs/tags/v1"}, eventTag},
+		{"显式 tag_push", parsedPayload{ObjectKind: "tag_push", Ref: "refs/tags/v1"}, eventTag},
+		{"MR", parsedPayload{ObjectKind: "merge_request"}, eventMergeRequest},
+		{"release", parsedPayload{ObjectKind: "release"}, eventRelease},
+		{"大写容忍", parsedPayload{ObjectKind: "Push", Ref: "refs/heads/x"}, eventPush},
+		{"无 object_kind", parsedPayload{Ref: "refs/heads/main"}, ""},
+		{"未知 object_kind", parsedPayload{ObjectKind: "note"}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := eventFromPayload(c.p); got != c.want {
+				t.Fatalf("eventFromPayload = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// codeupPushBody 是云效 Codeup 真实 push 载荷的形态:带 object_kind,**不带**事件头,
+// commits[] 里也没有 added/modified/removed(Codeup 不给改动文件清单)。
+func codeupPushBody(branch, after string) []byte {
+	return []byte(`{"object_kind":"push","before":"882688d","after":"` + after + `",` +
+		`"checkout_sha":"` + after + `","ref":"refs/heads/` + branch + `","total_commits_count":1,` +
+		`"commits":[{"id":"` + after + `","message":"msg","timestamp":"2026-09-26T16:25:38.000+08:00",` +
+		`"url":"https://codeup.aliyun.com/x/y/commit/` + after + `","author":{"name":"liangxy","email":"a@b.c"}}],` +
+		`"repository":{"name":"financial-v5","git_http_url":"https://codeup.aliyun.com/fxy/fenxi365/financial-v5.git"}}`)
+}
+
+// 云效 Codeup 投递不带事件头:事件类型必须由 body 的 object_kind 判定,否则会被当成
+// 「未订阅」而永不触发(这是「配了 webhook 却一直不触发」的原因)。
+func TestCodeupPushWithoutEventHeaderCreatesRun(t *testing.T) {
+	rc, fake, token, secret := newReceiver(t)
+	res, err := rc.Handle(context.Background(), Delivery{
+		Token: token,
+		// 只带 token 头,事件头/投递 id 头一律没有。
+		Header:  hdrs(map[string]string{HeaderCodeupToken: secret}),
+		RawBody: codeupPushBody("main", "6022b02"),
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if !res.Accepted || res.RunID == "" {
+		t.Fatalf("object_kind=push 且分支命中时应创建运行, got %+v", res)
+	}
+	if fake.count() != 1 {
+		t.Fatalf("expected 1 run, got %d", fake.count())
+	}
+	if got := fake.calls[0]; got.Branch != "main" || got.Commit != "6022b02" {
+		t.Fatalf("运行入参不符: %+v", got)
+	}
+}
+
+// 同一形态的载荷、分支不命中时,应以**分支不匹配**忽略 —— 证明事件闸门已经放行,
+// 拦下它的不再是「事件未订阅」。
+func TestCodeupPushWithoutEventHeaderEventGatePasses(t *testing.T) {
+	rc, fake, token, secret := newReceiver(t)
+	res, err := rc.Handle(context.Background(), Delivery{
+		Token:   token,
+		Header:  hdrs(map[string]string{HeaderCodeupToken: secret}),
+		RawBody: codeupPushBody("master", "6022b02"),
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if res.Accepted {
+		t.Fatalf("分支不在映射里不应创建运行, got %+v", res)
+	}
+	if res.Ignored != IgnoredUnmatchedIgnored {
+		t.Fatalf("应因分支不匹配被忽略(而非事件未订阅), got %q", res.Ignored)
+	}
+	if fake.count() != 0 {
+		t.Fatalf("不应创建运行, got %d", fake.count())
+	}
+}

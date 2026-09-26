@@ -35,8 +35,11 @@ const (
 	HeaderGiteeDelivery  = "X-Gitee-Delivery"
 )
 
-// 云效 Codeup / GitLab 兼容头。Codeup 事件名与载荷同 Gitee(GitLab 风格),
-// 仅头前缀不同;token 可能落在 X-Codeup-Token 或 X-Gitlab-Token。
+// 云效 Codeup / GitLab 兼容头。头前缀与 Gitee 不同;token 可能落在 X-Codeup-Token 或 X-Gitlab-Token。
+//
+// 注意:Codeup 投递**不保证**带事件头(实测其 push 投递不带 X-Codeup-Event/X-Gitlab-Event),
+// 事件类型只在 body 的 object_kind 里 —— 故事件判定一律以 canonicalEvent + eventFromPayload 兜底,
+// 不能只依赖头。
 const (
 	HeaderCodeupEvent    = "X-Codeup-Event"
 	HeaderCodeupToken    = "X-Codeup-Token"
@@ -207,7 +210,8 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 
 	// 从请求头解析本次投递的关注字段:事件名与投递 id 抹平平台头名差异,
 	// token 头名可被项目配置覆盖(见 resolveTokenHeader)。
-	event := d.header(eventHeaders...)
+	// 事件名先做归一化:Gitee 用 "Push Hook",GitLab/Codeup 系亦见裸小写/下划线形态。
+	event := canonicalEvent(d.header(eventHeaders...))
 	timestamp := d.header(HeaderGiteeTimestamp)
 	deliveryID := d.header(deliveryHeaders...)
 
@@ -223,9 +227,16 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 		return nil, ErrUnauthorized
 	}
 
+	// 解析载荷(在验签之后,不先解析未经验证的 body)。
+	parsed := parsePayload(d.RawBody)
+	// 事件类型兜底:云效 Codeup 的投递不带事件头,事件类型只在 body 的 object_kind 里。
+	// 缺这一步,Codeup 投递会因 event="" 被判「未订阅」而永不触发。
+	if event == "" {
+		event = eventFromPayload(parsed)
+	}
+
 	// 解析事件 → 是否订阅。
 	subscribed := eventSubscribed(event, cfg.Events)
-	parsed := parsePayload(d.RawBody)
 
 	// 去重键:优先投递 id 头;缺失时回退 event+branch+commit 派生键。
 	deliveryKey := deliveryID
@@ -495,14 +506,17 @@ func eventSubscribed(event string, ev Events) bool {
 	}
 }
 
-// parsedPayload 是从 Gitee payload 解析出的关注字段。
+// parsedPayload 是从 webhook payload 解析出的关注字段。
 //
 // ChangedFiles 为本次 push 改动的文件路径并集(commits[].{added,modified,removed} 去重);
 // 仅 push 事件有意义,其余事件 / 拿不到时为空(空 → 路径过滤放行,诚实降级)。
+// ObjectKind / Ref 供事件类型兜底判定用(见 eventFromPayload)。
 type parsedPayload struct {
 	Branch       string
 	Commit       string
 	ChangedFiles []string
+	ObjectKind   string
+	Ref          string
 }
 
 // pushCommit 是 push 事件 commits[] 元素里本包关心的改动文件三类(GitHub/Gitee 同形)。
@@ -512,8 +526,14 @@ type pushCommit struct {
 	Removed  []string `json:"removed"`
 }
 
-// giteePayload 是 Gitee push/tag/MR/release webhook 的部分字段(只取所需,容忍多余字段)。
-type giteePayload struct {
+// hookPayload 是 Gitee / 云效 Codeup / GitLab 三类 webhook 的共同字段子集(只取所需,容忍多余字段)。
+// 三者 push 载荷同形(object_kind/ref/before/after/checkout_sha/commits),差异在事件头与事件名。
+//
+// 注意:云效 Codeup 的 commits[] **不带** added/modified/removed —— 其投递拿不到改动文件清单,
+// 故对 Codeup 项目配了 pathFilters 时按「拿不到清单就放行」诚实降级(见 changedFiles / Handle),
+// 即路径过滤对 Codeup 不生效;要按路径收敛请改用分支映射。
+type hookPayload struct {
+	ObjectKind  string       `json:"object_kind"`
 	Ref         string       `json:"ref"`
 	After       string       `json:"after"`
 	CheckoutSHA string       `json:"checkout_sha"`
@@ -543,7 +563,7 @@ type giteePayload struct {
 // branch→环境映射(如模式 v* 命中 v1.2.3),保持下游处理统一简单——上游对
 // Branch 的语义是「触发引用名」,push 为分支名、tag/release 为标签名。
 func parsePayload(body []byte) parsedPayload {
-	var p giteePayload
+	var p hookPayload
 	_ = json.Unmarshal(body, &p)
 
 	// 触发引用名:push/tag 取 ref 末段;release 事件 ref 缺省,取 release.tag_name。
@@ -569,7 +589,68 @@ func parsePayload(body []byte) parsedPayload {
 	if commit == "" {
 		commit = strings.TrimSpace(p.Release.TargetCommitish)
 	}
-	return parsedPayload{Branch: branch, Commit: commit, ChangedFiles: changedFiles(p.Commits)}
+	return parsedPayload{
+		Branch:       branch,
+		Commit:       commit,
+		ChangedFiles: changedFiles(p.Commits),
+		ObjectKind:   strings.TrimSpace(p.ObjectKind),
+		Ref:          strings.TrimSpace(p.Ref),
+	}
+}
+
+// object_kind 取值(GitLab 风格;云效 Codeup 同形,是 Codeup 投递里唯一可靠的事件类型来源)。
+const (
+	objectKindPush         = "push"
+	objectKindTagPush      = "tag_push"
+	objectKindMergeRequest = "merge_request"
+	objectKindRelease      = "release"
+)
+
+// canonicalEvent 把各平台事件头值归一化为内部事件名,无法识别 → ""。
+//   - Gitee:      "Push Hook" / "Tag Push Hook" / "Merge Request Hook" / "Release Hook"
+//   - GitLab 风格:同名,但亦见裸小写 "push" / 下划线 "merge_request"(Codeup 系)
+func canonicalEvent(raw string) string {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	if s == "" {
+		return ""
+	}
+	s = strings.TrimSuffix(s, " hook")
+	s = strings.ReplaceAll(s, "_", " ")
+	s = strings.Join(strings.Fields(s), " ")
+	switch s {
+	case "push":
+		return eventPush
+	case "tag push":
+		return eventTag
+	case "merge request", "pull request":
+		return eventMergeRequest
+	case "release":
+		return eventRelease
+	default:
+		return ""
+	}
+}
+
+// eventFromPayload 在事件头缺失/不可识别时,据载荷的 object_kind 兜底判定事件类型。
+// 云效 Codeup 的 push 投递不带事件头,body 里的 object_kind 是唯一可靠依据;识别不出 → ""
+// (订阅判定随之不通过,按「未订阅」诚实忽略,而不是猜一个事件去触发流水线)。
+func eventFromPayload(p parsedPayload) string {
+	switch strings.ToLower(strings.TrimSpace(p.ObjectKind)) {
+	case objectKindPush:
+		// GitLab/Codeup 把「推 tag」也报成 push,区别只在 ref;Gitee 则单列 Tag Push Hook。
+		if strings.HasPrefix(p.Ref, "refs/tags/") {
+			return eventTag
+		}
+		return eventPush
+	case objectKindTagPush:
+		return eventTag
+	case objectKindMergeRequest:
+		return eventMergeRequest
+	case objectKindRelease:
+		return eventRelease
+	default:
+		return ""
+	}
 }
 
 // changedFiles 把 push 事件 commits[].{added,modified,removed} 汇成去重的文件路径并集

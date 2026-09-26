@@ -334,3 +334,39 @@ func TestWebhookBranchNoMatch(t *testing.T) {
 		t.Fatalf("expected unmatched_ignored, got %v", out["ignored"])
 	}
 }
+
+// TestWebhookCodeupNoEventHeaderAccept 是「云效 Codeup 配了 webhook 却一直不触发」的回归:
+// Codeup 的 push 投递**不带**事件头,事件类型只在 body 的 object_kind 里。
+// 只凭头判定事件会得到空事件 → 判「未订阅」→ 永不触发。
+func TestWebhookCodeupNoEventHeaderAccept(t *testing.T) {
+	// 与实测 Codeup 载荷同形:object_kind=push;commits[] 不带 added/modified/removed。
+	body := []byte(`{"object_kind":"push","before":"882688d59d6f7fa1ee32f2a961600fceb69756c8",` +
+		`"after":"6022b02c79dc0e437705c685daebe1e4835e18a6",` +
+		`"checkout_sha":"6022b02c79dc0e437705c685daebe1e4835e18a6","ref":"refs/heads/main",` +
+		`"total_commits_count":1,"commits":[{"id":"6022b02c79dc0e437705c685daebe1e4835e18a6",` +
+		`"message":"批量复制上期","timestamp":"2026-09-26T16:25:38.000+08:00",` +
+		`"author":{"name":"liangxy","email":"13049886416@163.com"}}],` +
+		`"repository":{"name":"financial-v5","git_http_url":"https://codeup.aliyun.com/fxy/fenxi365/financial-v5.git"}}`)
+
+	srv, _, _, _, token, secret := setupWebhookServer(t)
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/api/webhooks/"+token, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(trigger.HeaderCodeupToken, secret) // 只有 token 头,没有事件头
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		t.Fatalf("do webhook: %v", err)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, raw)
+	}
+	var out map[string]any
+	_ = json.Unmarshal(raw, &out)
+	if out["accepted"] != true || out["runId"] == "" {
+		t.Fatalf("object_kind=push 应触发运行, got %s", raw)
+	}
+}
