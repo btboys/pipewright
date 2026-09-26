@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // fakeRemoteExecer 是可控的 RemoteExecer:记录被投递的命令,按注入返回结果/错误。

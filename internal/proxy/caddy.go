@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // Caddy 编排常量(每主机一个 Caddy 容器,跑在共享 docker 网络上,按上游容器名路由)。
@@ -22,7 +22,7 @@ const (
 	// defaultCaddyImage 是默认反代镜像:含 DNS-01 插件 + ratelimit + layer4 的自构建 Caddy
 	// (见 deploy/caddy/Dockerfile + .github/workflows/caddy-image.yml)。可经
 	// PIPEWRIGHT_CADDY_IMAGE 覆盖(如用 stock caddy:2,但那样没有 DNS-01/通配符/L4 能力)。
-	defaultCaddyImage = "ghcr.io/huangchengsir/pipewright-caddy:latest"
+	defaultCaddyImage = "ghcr.io/btboys/pipewright-caddy:latest"
 	// caddyImageEnv 是覆盖反代镜像的环境变量名。
 	caddyImageEnv = "PIPEWRIGHT_CADDY_IMAGE"
 	// caddyDataVol 是证书/ACME 账户持久卷(删路由不删卷,避免重签触发 LE 限速)。

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // caddyAbsentTarget 返回一个 fakeTarget:docker inspect 恒报「不存在」(触发起容器路径),其余 exit0。

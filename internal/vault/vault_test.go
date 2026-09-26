@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 // pemKey 是一段以 PEM 头开头的伪 SSH 私钥(AC-SEC-01 用)。绝不可在库 dump 中出现。

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // ─── pathGlobMatch 单元 ─────────────────────────────────────────────────────

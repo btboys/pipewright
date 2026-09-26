@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/target"
 	"golang.org/x/crypto/bcrypt"
 )
 

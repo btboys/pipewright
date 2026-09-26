@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: '目标目录',
   fieldPathDir: '追加到 PATH 的目录',
   fieldArtifactPath: '产物路径 (glob)',
+  fieldArtifactName: '产物名称(留空自动)',
   fieldSaveAs: '另存为',
   fieldArchiveFile: '归档文件',
   fieldExtractTo: '解到目录',

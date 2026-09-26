@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/pipeline"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
 )
 
 // ---- 构建/部署配置 DTO(冻结契约;camelCase;secret 项绝无明文,仅 credentialId + maskedValue) ----

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 // TestStoreCRUDRoundtrip 验证路由 落库 → 列 → 启停 → 删 在真库上往返一致(两方言)。

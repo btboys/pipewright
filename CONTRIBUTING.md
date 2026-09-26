@@ -44,7 +44,7 @@ Pure Go backend (no CGO); the frontend is embedded into a single binary via `go:
 
 ```bash
 # 克隆 / clone
-git clone https://github.com/huangchengsir/pipewright.git
+git clone https://github.com/btboys/pipewright.git
 cd pipewright
 
 # 构建单一二进制(含前端)/ build the single binary (frontend included)

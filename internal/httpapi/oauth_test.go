@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/oauth"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/oauth"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // setupOAuthServer 构造带 auth + vault + oauth 的测试 server;oauth 用注入 client(默认 http.DefaultClient)。

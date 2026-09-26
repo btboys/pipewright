@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/deploy"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/deploy"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // setupDeployServer 构造带 auth + project + run + servers(target)+ deploy 的测试 server。

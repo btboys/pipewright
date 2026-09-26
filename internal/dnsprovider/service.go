@@ -9,7 +9,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // vaultReader 抽象「按 id 取凭据明文(不刷新 last_used_at)+ 校验存在」的最小能力(注入便于单测)。

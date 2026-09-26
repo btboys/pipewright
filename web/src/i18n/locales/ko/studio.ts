@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: '대상 디렉터리',
   fieldPathDir: 'PATH에 추가할 디렉터리',
   fieldArtifactPath: '산출물 경로 (glob)',
+  fieldArtifactName: '산출물 이름(비우면 자동)',
   fieldSaveAs: '다른 이름으로 저장',
   fieldArchiveFile: '아카이브 파일',
   fieldExtractTo: '압축 해제 디렉터리',

@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: '目標目錄',
   fieldPathDir: '追加到 PATH 的目錄',
   fieldArtifactPath: '產物路徑 (glob)',
+  fieldArtifactName: '產物名稱(留空自動)',
   fieldSaveAs: '另存為',
   fieldArchiveFile: '歸檔檔案',
   fieldExtractTo: '解壓到目錄',

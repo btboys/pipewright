@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/trigger"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/trigger"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // setupTriggerServer 构造带 auth + vault + project + trigger 的测试 server,并返回一个项目 id。

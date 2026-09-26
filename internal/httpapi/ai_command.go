@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // ai_command.go 是「AI 运维终端助手」HTTP 层(运维终端 P1 · 护城河 · AI moat)。

@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // e2eHarness 把真 vault+target+run+deploy 串起来,登记容器为目标服务器。

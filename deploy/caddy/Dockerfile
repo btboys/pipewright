@@ -33,6 +33,6 @@ FROM caddy:${CADDY_VERSION}
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
 # 沿用官方镜像的 ENTRYPOINT/CMD(caddy run ...);Pipewright 起容器时显式传 --config/--adapter。
-LABEL org.opencontainers.image.source="https://github.com/huangchengsir/pipewright" \
+LABEL org.opencontainers.image.source="https://github.com/btboys/pipewright" \
       org.opencontainers.image.description="Caddy with DNS-01 (cloudflare/alidns/tencentcloud), ratelimit and layer4 plugins for Pipewright reverse proxy" \
       org.opencontainers.image.licenses="Apache-2.0"

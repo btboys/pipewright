@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/ai"
 )
 
 // TestAICommandHappyPath 验证 /ai/command 回 200 + available + 命令/风险透传。

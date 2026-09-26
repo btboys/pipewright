@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // realPipFailureLog 是一条**真实**捕获的 docker 构建失败日志(pip install 非法版本号),

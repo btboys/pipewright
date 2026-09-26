@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/mask"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // --- 纯函数:参数校验(AC-SEC-02 要害) ---

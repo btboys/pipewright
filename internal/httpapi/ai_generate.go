@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/library"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/trigger"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/library"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/trigger"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // ---- AI 生成 / 应用 DTO(冻结契约;camelCase;绝无明文密钥) ----

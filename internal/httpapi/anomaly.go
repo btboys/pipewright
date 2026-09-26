@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btboys/pipewright/internal/anomaly"
+	"github.com/btboys/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/anomaly"
-	"github.com/huangchengsir/pipewright/internal/notify"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // Story 6.5(FR-23):可配置运行时异常检测与告警。

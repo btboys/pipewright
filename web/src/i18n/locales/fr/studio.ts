@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: 'Répertoire cible',
   fieldPathDir: 'Répertoire à ajouter au PATH',
   fieldArtifactPath: 'Chemin de l’artefact (glob)',
+  fieldArtifactName: 'Nom de l’artefact (auto si vide)',
   fieldSaveAs: 'Enregistrer sous',
   fieldArchiveFile: 'Fichier d’archive',
   fieldExtractTo: 'Extraire vers le répertoire',

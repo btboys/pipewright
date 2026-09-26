@@ -20,7 +20,7 @@ permissions:
   packages: write # 推镜像到 ghcr.io
 
 env:
-  IMAGE: ghcr.io/huangchengsir/pipewright-caddy
+  IMAGE: ghcr.io/btboys/pipewright-caddy
 
 jobs:
   build-and-push:

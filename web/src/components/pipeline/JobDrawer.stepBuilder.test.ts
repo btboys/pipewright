@@ -65,6 +65,24 @@ describe('JobDrawer + StepBuilder integration', () => {
     expect(builder.findAll('.sb-kind')[1].text()).toBe('切目录')
   })
 
+  // 上传产物步骤支持自定义名称:反解析回显到「名称=路径」两个输入框,改名后编译回 config 时带上前缀。
+  it('round-trips an artifact custom name through the step builder', async () => {
+    const job = builderJob({ image: 'node:20', artifactPath: 'web-dist=frontend/dist' })
+    const wrapper = mount(JobDrawer, { props: { job, stage } })
+    const builder = wrapper.findComponent(StepBuilder)
+
+    const inputs = builder.findAll('.sb-step--artifact input')
+    expect(inputs).toHaveLength(2)
+    expect((inputs[0].element as HTMLInputElement).value).toBe('web-dist')
+    expect((inputs[1].element as HTMLInputElement).value).toBe('frontend/dist')
+
+    await inputs[0].setValue('api-dist')
+    await inputs[0].trigger('blur')
+
+    const last = wrapper.emitted('update')!.at(-1)![0] as Partial<PipelineJob>
+    expect(last.config!.artifactPath).toBe('api-dist=frontend/dist')
+  })
+
   it('defaults to raw view for a templated node (commandTemplate present)', () => {
     const job: PipelineJob = {
       id: 'j2',

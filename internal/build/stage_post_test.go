@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // postRecDriver 记录每次 RunToolchain 的镜像(按调用序),并可让指定镜像返回非零(失败)。

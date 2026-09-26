@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // script_steps.go 是「自定义脚本步骤」执行器(Epic 8 地基 · Story 8-2)。

@@ -23,7 +23,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // 领域错误。错误体绝不含明文凭据/master key。

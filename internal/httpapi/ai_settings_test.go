@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // setupAIServer 构造带 auth + vault + ai 的测试 server;ai 用注入 client(默认指向给定 stub)。

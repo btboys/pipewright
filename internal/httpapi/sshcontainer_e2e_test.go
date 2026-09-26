@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 	"golang.org/x/crypto/ssh"
 )
 

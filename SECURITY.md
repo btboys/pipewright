@@ -11,7 +11,7 @@
    在仓库 **Security → Advisories → Report a vulnerability** 提交私密报告。
    Go to **Security → Advisories → Report a vulnerability** in this repo.
 2. 私信仓库维护者 / Contact the maintainer privately
-   (`github.com/huangchengsir`)。
+   (`github.com/btboys`)。
 
 报告请尽量包含 / Please include where possible:
 - 受影响的版本 / 组件(commit 或 tag)

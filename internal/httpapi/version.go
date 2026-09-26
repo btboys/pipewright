@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/version"
+	"github.com/btboys/pipewright/internal/version"
 )
 
 // makeCheckUpdateHandler 处理 GET /api/version/check:查询 GitHub 最新发布并与当前版本比对。

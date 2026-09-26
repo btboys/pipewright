@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/mask"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // 容器 AI 诊断 / 看日志(AI moat)。POST /api/servers/{id}/containers/{containerId}/diagnose。

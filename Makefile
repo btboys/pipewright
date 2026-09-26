@@ -8,7 +8,7 @@ GO_FMT_DIRS := cmd internal embed.go
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
-VPKG    := github.com/huangchengsir/pipewright/internal/version
+VPKG    := github.com/btboys/pipewright/internal/version
 LDFLAGS := -s -w -X $(VPKG).Version=$(VERSION) -X $(VPKG).Commit=$(COMMIT) -X $(VPKG).Date=$(DATE)
 
 .PHONY: all build embed-frontend go-build test vet fmt fmt-check mem-check dev run version clean

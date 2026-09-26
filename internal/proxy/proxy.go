@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 	"golang.org/x/crypto/bcrypt"
 )
 

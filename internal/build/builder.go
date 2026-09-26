@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/artifactstore"
-	"github.com/huangchengsir/pipewright/internal/deploy"
-	"github.com/huangchengsir/pipewright/internal/notify"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/artifactstore"
+	"github.com/btboys/pipewright/internal/deploy"
+	"github.com/btboys/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // 步骤名(Plan 顺序;固定中文以对齐既有 UI/桩风格)。

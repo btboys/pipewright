@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/notify"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // TestRoutesCRUDLifecycle 验证事件路由 CRUD（Story 5.2 / FR-20）：建渠道→建路由→列出→删。

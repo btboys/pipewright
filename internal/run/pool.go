@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btboys/pipewright/internal/mask"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/mask"
 )
 
 // defaultConcurrency 是 worker pool 默认并发上限(有界;NFR-4 内存约束)。

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // interactive.go 实现「交互式分批部署」(P0 · 对标云效 firstBatchPause)+ 运行时续发/中止。

@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: 'Relatif à la racine de l’espace de travail cloné ; vide = racine de l’espace de travail',
   fieldArtifactPathLabel: 'Chemins des artefacts',
   fieldArtifactPathHint:
-    'Optionnel, un par ligne. Relatif à la racine de l’espace de travail : répertoire→dist, *.jar→jar, autres fichiers→archive. Un nœud peut en produire plusieurs ; ce n’est qu’une fois définis qu’ils sont archivés dans le magasin d’artefacts et téléchargeables/déployables dans les détails de l’exécution. Pour les artefacts d’image, utilisez le nœud « Build » (build_image), pas ici',
+    'Optionnel, un par ligne ; « nom=chemin » définit un nom d’artefact personnalisé (utilisé pour le dossier de déploiement et le nom de téléchargement), vide = automatique. Relatif à la racine de l’espace de travail : répertoire→dist, *.jar→jar, autres fichiers→archive. Un nœud peut en produire plusieurs ; ce n’est qu’une fois définis qu’ils sont archivés dans le magasin d’artefacts et téléchargeables/déployables dans les détails de l’exécution. Pour les artefacts d’image, utilisez le nœud « Build » (build_image), pas ici',
   fieldCachePathsLabel: 'Répertoires de cache des dépendances',
   fieldCachePathsHint:
     'Optionnel, un par ligne, relatif à la racine de l’espace de travail. Ce n’est qu’une fois définis que le cache est activé : restauré avant le build, sauvegardé après, réutilisant les dépendances entre exécutions (évite de retélécharger node_modules/.m2/.gradle, etc.). Les problèmes de cache n’affectent jamais le résultat du build',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: 'Un key=value par ligne, totalement libre ; référencez avec {\'{{key}}\'} dans le modèle de commande / les chemins d’artefacts',
   fieldCommandTemplateLabel: 'Modèle de commande',
   fieldCommandTemplateHint: 'Multiligne ; {\'{{paramètre}}\'} est remplacé par la valeur de la table des paramètres, $ENV reste géré par le shell du conteneur',
-  fieldTemplatedArtifactPathHint: 'Optionnel, un par ligne, prend en charge {\'{{paramètre}}\'} et les jokers ; répertoire→dist, *.jar→jar, autre→archive',
+  fieldTemplatedArtifactPathHint: 'Optionnel, un par ligne ; « nom=chemin » définit un nom d’artefact (dossier de déploiement / nom de téléchargement), vide = automatique ; prend en charge {\'{{paramètre}}\'} et les jokers ; répertoire→dist, *.jar→jar, autre→archive',
   fieldTemplatedWorkDirHint: 'Optionnel, relatif à la racine de l’espace de travail cloné',
   fieldTemplatedCachePathsHint:
     'Optionnel, un par ligne, relatif à la racine de l’espace de travail, prend en charge {\'{{paramètre}}\'}. Ce n’est qu’une fois définis que le cache est activé : restauré avant le build, sauvegardé après, réutilisant les dépendances entre exécutions. Les problèmes de cache n’affectent jamais le résultat du build',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: 'ignore toutes les étapes suivantes',
   sbCondHintPost: ' (se termine avec succès). Par exemple',
   sbArtifactAria: 'Chemin d’artefact {n}',
+  sbArtifactNameAria: 'Nom d’artefact {n}',
+  sbArtifactNamePh: 'Nom (auto si vide)',
   sbEmpty: 'Aucune étape pour l’instant, cliquez sur « Ajouter une étape » ci-dessous pour commencer',
   sbAddStep: 'Ajouter une étape',
   sbAddCommandDesc: 'commande shell (multiligne)',

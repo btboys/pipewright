@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // stubDialer 让 HTTP 层测试可控 SSH 结果,不触网。捕获 cfg 以断言不泄漏。

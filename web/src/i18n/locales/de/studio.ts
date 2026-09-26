@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: 'Zielverzeichnis',
   fieldPathDir: 'An PATH anzuhängendes Verzeichnis',
   fieldArtifactPath: 'Artefaktpfad (Glob)',
+  fieldArtifactName: 'Artefaktname (leer = automatisch)',
   fieldSaveAs: 'Speichern unter',
   fieldArchiveFile: 'Archivdatei',
   fieldExtractTo: 'In Verzeichnis entpacken',

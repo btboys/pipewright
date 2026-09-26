@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/deploy"
+	"github.com/btboys/pipewright/internal/run"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/deploy"
-	"github.com/huangchengsir/pipewright/internal/run"
 )
 
 // ---- 冻结 run-detail targets 子 DTO(Story 4.2;填 3-1 留的 null slot) -------

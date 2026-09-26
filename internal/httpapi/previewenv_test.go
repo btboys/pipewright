@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/previewenv"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/previewenv"
 )
 
 // setupPreviewServer 构造带 auth + 预览环境端点的测试 server。

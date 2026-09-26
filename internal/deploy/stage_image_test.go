@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // stage_image_test.go 覆盖「流水线部署节点」(DeployForStage)对 **镜像产物** 的部署编排:

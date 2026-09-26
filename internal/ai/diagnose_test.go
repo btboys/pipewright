@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // fakeRunSecret 是测试用的「假 secret」,模拟桩失败日志内嵌的凭据。

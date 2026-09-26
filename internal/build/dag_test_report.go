@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/dagrun"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/qualitygate"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/testreport"
+	"github.com/btboys/pipewright/internal/dagrun"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/qualitygate"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/testreport"
 )
 
 // dag_test_report.go 实现「测试报告采集 + 质量门禁」(Epic 8 · Story 8-6 / FR-8-6)。

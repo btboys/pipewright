@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // ─── 测试替身 ──────────────────────────────────────────────────────────────────

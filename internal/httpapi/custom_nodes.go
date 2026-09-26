@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/library"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/library"
 )
 
 // custom_nodes.go 暴露自定义节点端点(复用库 Tier 2 · 对标 Jenkins 自定义步骤 / 云效自建任务模板)。

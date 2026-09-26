@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 func TestDisplayCmd(t *testing.T) {

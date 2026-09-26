@@ -8,7 +8,7 @@
  *   - `commands`     多行命令字符串,按 `\n` 拆成逐行命令,在容器内拼成一个
  *                    `set -e` 单脚本经 `sh -c` 执行(见 internal/build/dag_stage_exec.go:25)
  *   - `workDir`      步骤起始工作目录(节点级)
- *   - `artifactPath` 多行产物路径(每行一条 glob)
+ *   - `artifactPath` 多行产物声明,每行 `[名称=]路径`(路径为 glob;名称可选,见下方语法节)
  * 后端**不读** `env` 这类键 —— 所以「设环境变量」步骤被编译成 `export K=V` 命令行;
  * 「切目录」步骤被编译成 `cd DIR` 命令行。因为所有命令同处一个 shell 脚本,
  * `export` / `cd` 对后续命令生效,顺序语义被忠实保留,且零后端改动。
@@ -46,6 +46,8 @@ export interface StepBlock {
   dir?: string
   /** artifact:产物路径(glob) */
   artifact?: string
+  /** artifact:产物自定义名称(留空自动命名 slug-<路径基名>) */
+  artifactName?: string
   /** condition:shell 条件表达式(不成立则跳过后续步骤) */
   condition?: string
 }
@@ -122,7 +124,7 @@ export function compileSteps(steps: readonly StepBlock[]): CompiledSteps {
   for (const step of steps) {
     if (step.kind === 'artifact') {
       const p = (step.artifact ?? '').trim()
-      if (p) artifacts.push(p)
+      if (p) artifacts.push(joinArtifactLine(step.artifactName ?? '', p))
       continue
     }
     cmdLines.push(...stepToCommandLines(step))
@@ -202,6 +204,34 @@ export function lineToStep(line: string): StepBlock {
   return { id: nextStepId(), kind: 'command', command: line }
 }
 
+// ─── 产物声明语法:`[名称=]路径` ───────────────────────────────────────────────────
+//
+// artifactPath 每行一条。名称可选,给了就用它当产物名(部署目录名/下载名随之);
+// 留空沿用后端自动命名 slug-<路径基名>。规则与后端 internal/build.validArtifactName 一致:
+// 首个 `=` 前的片段须是字面安全的名称(字母数字与 . _ - { };≤64,不含路径分隔/通配/空白/等号)
+// 才当名称,否则整行视为路径 —— 保证旧格式(纯路径,哪怕含 `=`)语义不变。
+
+const ARTIFACT_NAME = /^[A-Za-z0-9._{}-]{1,64}$/
+
+/** 拆一行产物声明为 {name, path};无合法名称前缀 → name=''。 */
+export function splitArtifactLine(line: string): { name: string; path: string } {
+  const s = line.trim()
+  const eq = s.indexOf('=')
+  if (eq > 0) {
+    const name = s.slice(0, eq).trim()
+    const path = s.slice(eq + 1).trim()
+    if (ARTIFACT_NAME.test(name) && path !== '') return { name, path }
+  }
+  return { name: '', path: s }
+}
+
+/** 组装一行产物声明;名称非法/留空 → 只写路径(保持旧格式,后端按路径自动命名)。 */
+export function joinArtifactLine(name: string, path: string): string {
+  const n = name.trim()
+  const p = path.trim()
+  return ARTIFACT_NAME.test(n) ? `${n}=${p}` : p
+}
+
 /**
  * 从 config 反解析出步骤列表。`commands` 逐行分类;`artifactPath` 每行还原成上传产物步骤
  * (追加在末尾,顺序无关)。空 → 空列表(由调用方决定是否兜底)。
@@ -215,8 +245,9 @@ export function parseSteps(config: Record<string, string>): StepBlock[] {
   }
   const artifactPath = config.artifactPath ?? ''
   for (const line of artifactPath.replace(/\r/g, '').split('\n')) {
-    const p = line.trim()
-    if (p) steps.push({ id: nextStepId(), kind: 'artifact', artifact: p })
+    if (line.trim() === '') continue
+    const { name, path } = splitArtifactLine(line)
+    steps.push({ id: nextStepId(), kind: 'artifact', artifact: path, artifactName: name })
   }
   return steps
 }

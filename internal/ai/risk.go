@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // 风险等级枚举(对齐前端徽标配色:high=红、medium=琥珀、low=灰)。

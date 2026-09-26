@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 func now() string { return time.Now().UTC().Format(time.RFC3339) }

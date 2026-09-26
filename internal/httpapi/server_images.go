@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // 镜像管理(Portainer 式):列表 / 拉取 / 删除。经 SSH 跑 docker,目标机零侵入。

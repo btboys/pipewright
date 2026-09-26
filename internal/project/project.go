@@ -16,9 +16,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // 领域错误。错误体永不含明文/凭据/master key/内部栈。

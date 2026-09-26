@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/huangchengsir/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/notify"
 )
 
 // notifyConfigDTO 是通知全局配置(本期仅 language:外发通知默认文案语言)。

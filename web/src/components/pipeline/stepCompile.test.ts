@@ -87,6 +87,15 @@ describe('stepCompile', () => {
     it('yields empty strings for no steps', () => {
       expect(compileSteps([])).toEqual({ commands: '', artifactPath: '' })
     })
+
+    it('writes a custom artifact name as name=path (plain path when unnamed or invalid)', () => {
+      const out = compileSteps([
+        step({ kind: 'artifact', artifact: 'frontend/dist', artifactName: 'web-dist' }),
+        step({ kind: 'artifact', artifact: '*.log' }),
+        step({ kind: 'artifact', artifact: 'dist', artifactName: 'bad name' }),
+      ])
+      expect(out.artifactPath).toBe('web-dist=frontend/dist\n*.log\ndist')
+    })
   })
 
   describe('lineToStep', () => {
@@ -124,6 +133,7 @@ describe('stepCompile', () => {
         step({ kind: 'command', command: 'npm ci' }),
         step({ kind: 'command', command: 'npm run build' }),
         step({ kind: 'artifact', artifact: 'frontend/dist' }),
+        step({ kind: 'artifact', artifact: 'backend/target/app.jar', artifactName: 'api-jar' }),
       ]
       const compiled = compileSteps(original)
       const parsed = parseSteps({ commands: compiled.commands, artifactPath: compiled.artifactPath })
@@ -136,6 +146,8 @@ describe('stepCompile', () => {
         envValue: s.envValue,
         dir: s.dir,
         artifact: s.artifact,
+        // 未命名在编译后回解出 '',与步骤里缺省同义(都编译成纯路径)
+        artifactName: s.artifactName ?? '',
       })
       expect(parsed.map(shape)).toEqual(original.map(shape))
     })
@@ -150,6 +162,15 @@ describe('stepCompile', () => {
       expect(parsed.map((s) => [s.kind, s.artifact])).toEqual([
         ['artifact', 'dist'],
         ['artifact', '*.jar'],
+      ])
+    })
+
+    it('splits the optional name= prefix back out, leaving paths containing "=" intact', () => {
+      const parsed = parseSteps({ commands: '', artifactPath: 'web-dist=frontend/dist\na/b=x\napi.jar' })
+      expect(parsed.map((s) => [s.artifactName, s.artifact])).toEqual([
+        ['web-dist', 'frontend/dist'],
+        ['', 'a/b=x'],
+        ['', 'api.jar'],
       ])
     })
 

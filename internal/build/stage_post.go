@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/dagrun"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/dagrun"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // stage_post.go 执行阶段「后置步骤」(P1 · 对标 Jenkins post / GitLab after_script)。

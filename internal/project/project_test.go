@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // testMasterKey 返回确定性测试用 master key。

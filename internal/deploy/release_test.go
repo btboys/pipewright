@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // fakeFS 模拟目标机上零停机切换关心的最小状态:current 软链指向的发布路径。

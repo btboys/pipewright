@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/library"
+	"github.com/btboys/pipewright/internal/pipeline"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/library"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
 )
 
 // templates.go 暴露流水线模板端点(FR-8-13 复用基座 · 对标 Jenkins Shared Library / 云效模板)。

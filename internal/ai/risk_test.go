@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // fakeScriptSecret 是测试用的「假 secret」,模拟脚本里内嵌的明文凭据。

@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/mask"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/mask"
 )
 
 // Action 操作枚举(snake_case;DB 存字串)。只增不改语义。

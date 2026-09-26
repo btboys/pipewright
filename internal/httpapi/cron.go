@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/cron"
+	"github.com/btboys/pipewright/internal/run"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/cron"
-	"github.com/huangchengsir/pipewright/internal/run"
 )
 
 // cron.go 暴露项目定时(cron)触发配置端点(Epic 8 · Story 8-6)。

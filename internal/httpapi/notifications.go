@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/notify"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/notify"
 )
 
 // ---- 通知渠道 DTO(冻结契约;camelCase;敏感字段绝无明文,仅 hasPassword:bool) ----

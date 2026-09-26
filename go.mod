@@ -1,4 +1,4 @@
-module github.com/huangchengsir/pipewright
+module github.com/btboys/pipewright
 
 go 1.26.3
 

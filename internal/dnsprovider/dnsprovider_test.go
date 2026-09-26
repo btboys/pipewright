@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // --- 假 vault / RouteCreator / http transport -------------------------------

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/approval"
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/promotion"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/approval"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/promotion"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // promotion.go 装配环境晋级流(Epic 8 · Story 8-7 / FR-8-7)的 HTTP 端点与适配器。

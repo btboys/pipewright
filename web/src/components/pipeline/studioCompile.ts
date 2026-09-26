@@ -18,6 +18,7 @@
  */
 
 import { t } from '../../i18n'
+import { joinArtifactLine, splitArtifactLine } from './stepCompile'
 
 export type PromotedParamType = 'text' | 'select' | 'number' | 'toggle'
 
@@ -149,7 +150,7 @@ export function stepDefaults(kind: StudioStepKind): Record<string, string> {
     case 'path':
       return { dir: 'node_modules/.bin' }
     case 'artifact':
-      return { artifact: 'dist' }
+      return { artifact: 'dist', name: '' }
     case 'download':
       return { url: 'https://example.com/x', out: 'x' }
     case 'extract':
@@ -228,7 +229,7 @@ export function compileSteps(steps: readonly StudioStep[]): CompiledSteps {
         if (f(s, 'dir')) cmds.push(`cd ${shq(s.fields.dir)}`)
         break
       case 'artifact':
-        if (f(s, 'artifact')) artifacts.push(s.fields.artifact)
+        if (f(s, 'artifact')) artifacts.push(joinArtifactLine(f(s, 'name'), s.fields.artifact))
         break
       case 'download':
         if (f(s, 'url')) cmds.push(`curl -fsSL ${shq(s.fields.url)} -o ${shq(f(s, 'out') || 'download.bin')}`)
@@ -477,7 +478,10 @@ export function parseStudioConfig(config: Record<string, unknown>): StudioModel 
     const script = configString(config, 'commandTemplate') || configString(config, 'commands')
     if (script.trim()) steps.push({ id: ++stepUid, kind: 'command', fields: { command: script } })
     const artifact = configString(config, 'artifactPath')
-    if (artifact.trim()) steps.push({ id: ++stepUid, kind: 'artifact', fields: { artifact } })
+    if (artifact.trim()) {
+      const { name, path } = splitArtifactLine(artifact)
+      steps.push({ id: ++stepUid, kind: 'artifact', fields: { artifact: path, name } })
+    }
   }
   return {
     image: configString(config, 'image'),

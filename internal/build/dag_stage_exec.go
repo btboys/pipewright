@@ -11,14 +11,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/huangchengsir/pipewright/internal/dag"
-	"github.com/huangchengsir/pipewright/internal/dagrun"
-	"github.com/huangchengsir/pipewright/internal/deploy"
-	"github.com/huangchengsir/pipewright/internal/notify"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/dag"
+	"github.com/btboys/pipewright/internal/dagrun"
+	"github.com/btboys/pipewright/internal/deploy"
+	"github.com/btboys/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // dag_stage_exec.go 是 DAG 调度器(dagrun)的**真实阶段执行器**(Epic 8 · Story 8-2)。
@@ -777,13 +777,16 @@ func (b *Builder) runBuildImageJob(ctx context.Context, sink run.StepSink, rep d
 }
 
 // collectScriptArtifacts 收集 script job 声明的文件产物(job.Config["artifactPath"],**多行、每行一条**):
-// 逐条定位工作区内路径 → 按类型(目录=dist、*.jar=jar、其它文件=archive)归档进制品库真字节 →
-// EmitArtifact 登记。一个 job 可声明多条(既出 jar 又出 dist 等);未声明则跳过。
+// 每行语法 `[名称=]路径` —— 名称可选,给了就用它当产物名(部署目录名/下载名随之),留空沿用自动命名
+// slug-<路径基名>。逐条定位工作区内路径 → 按类型(目录=dist、*.jar=jar、其它文件=archive)归档进
+// 制品库真字节 → EmitArtifact 登记。一个 job 可声明多条(既出 jar 又出 dist 等);未声明则跳过。
 // 镜像类产物不走这里(走 build_image 节点);文件类才在此收集。
 func (b *Builder) collectScriptArtifacts(ctx context.Context, jobs []pipeline.Job, workspace, slug, stageName string, rep dagrun.StageReporter) {
 	onLine := func(stream, line string) { _ = rep.Log(ctx, stream, line) }
 	for _, jb := range jobs {
-		for _, rel := range splitCommands(renderTemplate(cfgString(jb.Config, "artifactPath"), templateContext(jb.Config))) { // 渲染 {{参数}} + 按行拆分
+		// 渲染 {{参数}} + 按行拆分;名称里的 {{参数}} 同在这一步渲染,故名称也可参数化。
+		for _, line := range splitCommands(renderTemplate(cfgString(jb.Config, "artifactPath"), templateContext(jb.Config))) {
+			name, rel := splitArtifactName(line)
 			// 通配(如 backend/target/*.jar)→ 展开为实际文件逐个收集;否则按原路径收集。
 			if strings.ContainsAny(rel, "*?[") {
 				clean := filepath.Clean(rel)
@@ -798,20 +801,56 @@ func (b *Builder) collectScriptArtifacts(ctx context.Context, jobs []pipeline.Jo
 				}
 				for _, m := range matches {
 					if relMatch, rerr := filepath.Rel(workspace, m); rerr == nil {
-						b.collectOneFileArtifact(ctx, workspace, relMatch, slug, jb.Name, stageName, rep, onLine)
+						// 一个名称对上多个匹配 → 附基名区分,否则多件产物同名不可辨。
+						matchName := name
+						if name != "" && len(matches) > 1 {
+							matchName = name + "-" + filepath.Base(m)
+						}
+						b.collectOneFileArtifact(ctx, workspace, relMatch, matchName, slug, jb.Name, stageName, rep, onLine)
 					}
 				}
 				continue
 			}
-			b.collectOneFileArtifact(ctx, workspace, rel, slug, jb.Name, stageName, rep, onLine)
+			b.collectOneFileArtifact(ctx, workspace, rel, name, slug, jb.Name, stageName, rep, onLine)
 		}
 	}
 }
 
+// splitArtifactName 把一条 artifactPath 声明拆成 (名称, 路径)。语法 `[名称=]路径`:首个 `=` 前的片段
+// 是合法名称才当名称,否则整行视为路径 —— 保证旧格式(纯路径,哪怕路径里含 `=`)语义不变。
+// 名称还须字面可作目录段/文件名(与 deploy.sanitizeName 的安全字符集一致),防越界与注入。
+func splitArtifactName(line string) (name, path string) {
+	s := strings.TrimSpace(line)
+	if i := strings.Index(s, "="); i > 0 {
+		if n, p := strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:]); validArtifactName(n) && p != "" {
+			return n, p
+		}
+	}
+	return "", s
+}
+
+// validArtifactName 判定产物名是否字面安全:仅字母数字与 . _ - { }({} 供 {{参数}} 占位),
+// 长度 ≤64。其余字符(路径分隔/通配/空白/等号)一律否决,避免把含 `=` 的路径误当名称。
+func validArtifactName(n string) bool {
+	if n == "" || len(n) > 64 {
+		return false
+	}
+	for _, r := range n {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9',
+			r == '.', r == '_', r == '-', r == '{', r == '}':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // collectOneFileArtifact 收集单条文件产物路径:越界(.. / 绝对)拒绝;定位不到打日志跳过(不致命);
-// 类型按路径自动判(目录=dist、*.jar=jar、其它文件=archive)。产物 metadata 记来源节点(阶段 + job 名),
+// 类型按路径自动判(目录=dist、*.jar=jar、其它文件=archive)。customName 非空 → 用它当产物名
+// (部署默认目录名/下载文件名随之),否则 slug-<路径基名>。产物 metadata 记来源节点(阶段 + job 名),
 // 供运行详情标注「哪个节点产的」。制品库未注入时 emit 占位引用,向后兼容。
-func (b *Builder) collectOneFileArtifact(ctx context.Context, workspace, rel, slug, jobName, stageName string, rep dagrun.StageReporter, onLine func(stream, line string)) {
+func (b *Builder) collectOneFileArtifact(ctx context.Context, workspace, rel, customName, slug, jobName, stageName string, rep dagrun.StageReporter, onLine func(stream, line string)) {
 	clean := filepath.Clean(rel)
 	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		onLine(streamStderr, "产物路径越界,已拒绝:"+rel)
@@ -823,12 +862,16 @@ func (b *Builder) collectOneFileArtifact(ctx context.Context, workspace, rel, sl
 		onLine(streamStderr, "产物路径未找到,跳过:"+rel)
 		return
 	}
-	// 产物名带上路径基名,避免一个 job 多产物同名(如多个 dist 目录)难以区分。
+	// 产物名:显式声明的名称优先;否则 slug + 路径基名(避免一个 job 多产物同名难以区分)。
 	base := filepath.Base(full)
+	name := customName
+	if name == "" {
+		name = slug + "-" + base
+	}
 	// metadata 记来源节点:sourceStage/sourceJob 供 UI 标注「哪个节点产的」(storeXxx 只补 stored/format,不清这些)。
 	// workspacePath 记原始工作区相对路径,供跨阶段产物传递:下游阶段据此把本产物真字节恢复回原位
 	// (如 backend/target/x.jar),使被拆到下游阶段的 build_image「COPY target/x.jar」仍能命中。
-	art := &run.Artifact{Name: slug + "-" + base, Reference: base, Metadata: map[string]any{"sourceStage": stageName, "sourceJob": jobName, "workspacePath": clean}}
+	art := &run.Artifact{Name: name, Reference: base, Metadata: map[string]any{"sourceStage": stageName, "sourceJob": jobName, "workspacePath": clean}}
 	switch {
 	case fi.IsDir():
 		art.Type = run.ArtifactDist

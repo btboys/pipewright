@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/i18n"
 )
 
 // emailSender 抽象 SMTP 发信(默认 net/smtp;单测注入 stub,无需真起 SMTP server)。

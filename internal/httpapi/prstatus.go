@@ -5,10 +5,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/prstatus"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/prstatus"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // prstatus.go 装配「运行结果回写代码平台提交状态」的终态钩子(Story 8-9 / FR-8-9)。

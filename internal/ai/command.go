@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // 命令风险等级(命令级,与 risk.go 的脚本 finding 等级解耦;对齐前端命令卡左色条配色:

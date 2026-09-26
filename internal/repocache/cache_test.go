@@ -12,7 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	"github.com/huangchengsir/pipewright/internal/build"
+	"github.com/btboys/pipewright/internal/build"
 )
 
 // newTestCache 构造放行本地夹具仓库的缓存(allowInsecure=true,跳过 SSRF 校验)。

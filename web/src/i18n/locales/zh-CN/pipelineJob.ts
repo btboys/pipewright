@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: '相对克隆工作区根;留空为工作区根',
   fieldArtifactPathLabel: '产物路径',
   fieldArtifactPathHint:
-    '可选,每行一条。相对工作区根:目录→dist、*.jar→jar、其它文件→archive。一个节点可出多件;填了才归档进制品库并在运行详情可下载/部署。镜像产物请用「构建」节点(build_image),不在这里',
+    '可选,每行一条,行内可写「名称=路径」自定义产物名(部署目录名/下载名随之),留空自动命名。相对工作区根:目录→dist、*.jar→jar、其它文件→archive。一个节点可出多件;填了才归档进制品库并在运行详情可下载/部署。镜像产物请用「构建」节点(build_image),不在这里',
   fieldCachePathsLabel: '依赖缓存目录',
   fieldCachePathsHint:
     '可选,每行一条,相对工作区根。配了才启用缓存:构建前恢复、构建后保存,跨多次运行复用依赖(免重复拉 node_modules/.m2/.gradle 等)。缓存问题绝不影响构建结果',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: '每行一条 key=value,完全自由;命令模板/产物路径里用 {\'{{key}}\'} 引用',
   fieldCommandTemplateLabel: '命令模板',
   fieldCommandTemplateHint: '多行;{\'{{参数}}\'} 会被参数表的值替换,$ENV 仍交给容器内 shell',
-  fieldTemplatedArtifactPathHint: '可选,每行一条,支持 {\'{{参数}}\'} 与通配;目录→dist、*.jar→jar、其它→archive',
+  fieldTemplatedArtifactPathHint: '可选,每行一条,行内可写「名称=路径」自定义产物名(部署目录名/下载名随之),留空自动命名;支持 {\'{{参数}}\'} 与通配;目录→dist、*.jar→jar、其它→archive',
   fieldTemplatedWorkDirHint: '可选,相对克隆工作区根',
   fieldTemplatedCachePathsHint:
     '可选,每行一条,相对工作区根,支持 {\'{{参数}}\'}。配了才启用缓存:构建前恢复、构建后保存,跨运行复用依赖。缓存问题绝不影响构建结果',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: '跳过后续所有步骤',
   sbCondHintPost: '(成功结束)。如',
   sbArtifactAria: '产物路径 {n}',
+  sbArtifactNameAria: '产物名称 {n}',
+  sbArtifactNamePh: '名称(留空自动)',
   sbEmpty: '还没有步骤,点下方「加步骤」开始',
   sbAddStep: '加步骤',
   sbAddCommandDesc: 'shell 命令(可多行)',

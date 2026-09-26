@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/ai"
 )
 
 // TestAnalyzeRisksHappyPath 验证风险标注端点回 200 + findings + aiEnhanced 透传。

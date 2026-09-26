@@ -189,7 +189,7 @@ const SCRIPT_FIELDS: JobField[] = [
     get label() { return t('pipelineJob.fieldArtifactPathLabel') },
     kind: 'textarea',
     monospace: true,
-    placeholder: 'frontend/dist\nbackend/target/app.jar',
+    placeholder: 'frontend/dist\nweb-dist=frontend/dist\nbackend/target/*.jar',
     get hint() { return t('pipelineJob.fieldArtifactPathHint') },
   },
   ...EXEC_OPTION_FIELDS,

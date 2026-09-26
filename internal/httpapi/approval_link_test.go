@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/approval"
+	"github.com/btboys/pipewright/internal/approval"
 )
 
 func newTestSigner() *approval.Signer {

@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/previewenv"
-	"github.com/huangchengsir/pipewright/internal/proxy"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/previewenv"
+	"github.com/btboys/pipewright/internal/proxy"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // previewenv_hook.go 装配「PR 部署成功 → 分配预览环境」的终态钩子(R4 E4.1)。

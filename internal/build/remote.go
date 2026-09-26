@@ -26,7 +26,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // ErrRemoteStdinUnsupported 表示远程模式暂不支持 stdin(如 docker login --password-stdin)。

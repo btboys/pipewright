@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // matrix.go 是矩阵构建(P1)的纯调度层展开:把一个声明了 Matrix 的阶段展开成笛卡尔积的多个并行

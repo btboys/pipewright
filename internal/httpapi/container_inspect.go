@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // 容器详情(inspect):经界面查看目标机上某容器的精选元信息(镜像/命令/状态/重启策略/

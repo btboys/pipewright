@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/trigger"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/trigger"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // ---- stub ai.Service(只实现 Generate;其余满足接口) ----

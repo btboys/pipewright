@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/prstatus"
+	"github.com/btboys/pipewright/internal/prstatus"
 )
 
 // PRState 是一个 PR 的判定状态(自动回收只在 closed / merged 时触发)。

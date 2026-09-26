@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // 泄漏标记:任何错误/响应中出现它都说明私钥/口令明文外泄。

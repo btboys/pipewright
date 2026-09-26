@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // multiStageFixture 是一份多阶段 DAG 流水线:source → build(script 步骤)→ deploy(needs + when + gate)

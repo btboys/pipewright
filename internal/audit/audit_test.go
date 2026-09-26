@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 // testDB 打开含迁移的临时 SQLite(含 0009_audit append-only 表 + trigger)。

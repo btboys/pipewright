@@ -28,9 +28,9 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}" # 可复现构建
     ldflags:
       - -s -w
-      - -X github.com/huangchengsir/pipewright/internal/version.Version={{ .Version }}
-      - -X github.com/huangchengsir/pipewright/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/huangchengsir/pipewright/internal/version.Date={{ .CommitDate }}
+      - -X github.com/btboys/pipewright/internal/version.Version={{ .Version }}
+      - -X github.com/btboys/pipewright/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/btboys/pipewright/internal/version.Date={{ .CommitDate }}
 
 archives:
   - id: default
@@ -83,13 +83,13 @@ dockers:
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-amd64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.source=https://github.com/huangchengsir/pipewright"
+      - "--label=org.opencontainers.image.source=https://github.com/btboys/pipewright"
       - "--label=org.opencontainers.image.licenses=MIT"
   - id: arm64
     goos: linux
@@ -97,30 +97,30 @@ dockers:
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-arm64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.source=https://github.com/huangchengsir/pipewright"
+      - "--label=org.opencontainers.image.source=https://github.com/btboys/pipewright"
       - "--label=org.opencontainers.image.licenses=MIT"
 
 docker_manifests:
-  - name_template: "ghcr.io/huangchengsir/pipewright:{{ .Version }}"
+  - name_template: "ghcr.io/btboys/pipewright:{{ .Version }}"
     image_templates:
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-amd64"
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-arm64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-amd64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-arm64"
   # latest 仅正式版推送(预发布 tag 自动跳过)。
-  - name_template: "ghcr.io/huangchengsir/pipewright:latest"
+  - name_template: "ghcr.io/btboys/pipewright:latest"
     skip_push: auto
     image_templates:
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-amd64"
-      - "ghcr.io/huangchengsir/pipewright:{{ .Version }}-arm64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-amd64"
+      - "ghcr.io/btboys/pipewright:{{ .Version }}-arm64"
 
 release:
   github:
-    owner: huangchengsir
+    owner: btboys
     name: pipewright
   draft: false
   # 含 -rc/-beta 等预发布标识的 tag 自动标记为 prerelease。
@@ -132,10 +132,10 @@ release:
 
     一键安装(Linux / macOS):
     ```sh
-    curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh | sh
     ```
 
     Docker:
     ```sh
-    docker run -d -p 8080:8080 -v pipewright-data:/data ghcr.io/huangchengsir/pipewright:{{ .Tag }}
+    docker run -d -p 8080:8080 -v pipewright-data:/data ghcr.io/btboys/pipewright:{{ .Tag }}
     ```

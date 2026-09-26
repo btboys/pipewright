@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: 'Relativo a la raíz del espacio de trabajo clonado; vacío = raíz del espacio de trabajo',
   fieldArtifactPathLabel: 'Rutas de artefactos',
   fieldArtifactPathHint:
-    'Opcional, uno por línea. Relativo a la raíz del espacio de trabajo: directorio→dist, *.jar→jar, otros archivos→archive. Un nodo puede emitir varios; solo al definirlos se archivan en el almacén de artefactos y se pueden descargar/desplegar en los detalles de la ejecución. Para artefactos de imagen usa el nodo «Build» (build_image), no aquí',
+    'Opcional, uno por línea; «nombre=ruta» define un nombre de artefacto propio (se usa en la carpeta de despliegue y el nombre de descarga), vacío = automático. Relativo a la raíz del espacio de trabajo: directorio→dist, *.jar→jar, otros archivos→archive. Un nodo puede emitir varios; solo al definirlos se archivan en el almacén de artefactos y se pueden descargar/desplegar en los detalles de la ejecución. Para artefactos de imagen usa el nodo «Build» (build_image), no aquí',
   fieldCachePathsLabel: 'Directorios de caché de dependencias',
   fieldCachePathsHint:
     'Opcional, uno por línea, relativo a la raíz del espacio de trabajo. Solo al definirlos se activa la caché: se restaura antes del build, se guarda después, reutilizando dependencias entre ejecuciones (evita volver a descargar node_modules/.m2/.gradle, etc.). Los problemas de caché nunca afectan al resultado del build',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: 'Un key=value por línea, totalmente libre; referéncialo con {\'{{key}}\'} en la plantilla de comandos / rutas de artefactos',
   fieldCommandTemplateLabel: 'Plantilla de comandos',
   fieldCommandTemplateHint: 'Multilínea; {\'{{parámetro}}\'} se reemplaza por el valor de la tabla de parámetros, $ENV lo sigue gestionando el shell del contenedor',
-  fieldTemplatedArtifactPathHint: 'Opcional, uno por línea, admite {\'{{parámetro}}\'} y comodines; directorio→dist, *.jar→jar, otros→archive',
+  fieldTemplatedArtifactPathHint: 'Opcional, uno por línea; «nombre=ruta» define un nombre de artefacto (carpeta de despliegue / nombre de descarga), vacío = automático; admite {\'{{parámetro}}\'} y comodines; directorio→dist, *.jar→jar, otros→archive',
   fieldTemplatedWorkDirHint: 'Opcional, relativo a la raíz del espacio de trabajo clonado',
   fieldTemplatedCachePathsHint:
     'Opcional, uno por línea, relativo a la raíz del espacio de trabajo, admite {\'{{parámetro}}\'}. Solo al definirlos se activa la caché: se restaura antes del build, se guarda después, reutilizando dependencias entre ejecuciones. Los problemas de caché nunca afectan al resultado del build',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: 'omite todos los pasos posteriores',
   sbCondHintPost: ' (termina con éxito). Por ejemplo',
   sbArtifactAria: 'Ruta de artefacto {n}',
+  sbArtifactNameAria: 'Nombre del artefacto {n}',
+  sbArtifactNamePh: 'Nombre (auto si vacío)',
   sbEmpty: 'Aún no hay pasos, haz clic en «Añadir paso» abajo para empezar',
   sbAddStep: 'Añadir paso',
   sbAddCommandDesc: 'comando de shell (multilínea)',

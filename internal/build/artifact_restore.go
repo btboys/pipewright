@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/dagrun"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/dagrun"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // restorePriorArtifacts 恢复本 run 上游阶段的文件产物到 workspace(见文件头）。

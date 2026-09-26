@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // Provider 枚举(DB 存小写字串;JSON 同名)。空串 = 未配置。

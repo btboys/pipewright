@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/trigger"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/trigger"
 )
 
 // webhookURLPrefix 是 webhook 接收端点路径前缀(冻结契约:/api/webhooks/<token>)。

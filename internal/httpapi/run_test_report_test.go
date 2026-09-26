@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // TestRunTestReportEndpoint_Empty 验证无报告 run → { reports: [], gate:{enabled:false,passed:true} }。

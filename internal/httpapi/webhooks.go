@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/trigger"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/trigger"
 )
 
 // webhookMaxBody 限制 webhook 投递体大小(防超大 body 拖垮内存)。

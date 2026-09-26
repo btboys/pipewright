@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/i18n"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // Story 6.4(FR-18):容器内交互终端(WS ↔ SSH → `docker exec -it`)。

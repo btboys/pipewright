@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 	yaml "gopkg.in/yaml.v3"
 )
 

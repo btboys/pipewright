@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/dagrun"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/dagrun"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // stage_env.go 实现「步骤输出 → 下游变量」(P1 · 对标云效 $FLOW_ENV / GitHub $GITHUB_ENV)。

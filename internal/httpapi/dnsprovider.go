@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/dnsprovider"
+	"github.com/btboys/pipewright/internal/proxy"
+	"github.com/btboys/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/dnsprovider"
-	"github.com/huangchengsir/pipewright/internal/proxy"
-	"github.com/huangchengsir/pipewright/internal/target"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // 审计 action / target(DNS 提供商 + 子域名分配写操作)。detail 绝无 token / 凭据明文。

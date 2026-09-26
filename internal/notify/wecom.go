@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/i18n"
 )
 
 // 企业微信群机器人投递。

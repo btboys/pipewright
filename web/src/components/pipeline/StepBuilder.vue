@@ -264,17 +264,28 @@ const stepCount = computed(() => steps.value.length)
           </p>
         </div>
 
-        <!-- 上传产物 -->
-        <input
-          v-else
-          :value="step.artifact ?? ''"
-          class="sb-input is-mono"
-          type="text"
-          placeholder="frontend/dist"
-          :aria-label="t('pipelineJob.sbArtifactAria', { n: index + 1 })"
-          @input="patchStep(step.id, { artifact: ($event.target as HTMLInputElement).value })"
-          @blur="flush"
-        />
+        <!-- 上传产物:可选自定义名称(留空自动命名)+ 产物路径(glob) -->
+        <div v-else class="sb-env">
+          <input
+            :value="step.artifactName ?? ''"
+            class="sb-input is-mono"
+            type="text"
+            :placeholder="t('pipelineJob.sbArtifactNamePh')"
+            :aria-label="t('pipelineJob.sbArtifactNameAria', { n: index + 1 })"
+            @input="patchStep(step.id, { artifactName: ($event.target as HTMLInputElement).value })"
+            @blur="flush"
+          />
+          <span class="sb-eq" aria-hidden="true">=</span>
+          <input
+            :value="step.artifact ?? ''"
+            class="sb-input is-mono"
+            type="text"
+            placeholder="frontend/dist"
+            :aria-label="t('pipelineJob.sbArtifactAria', { n: index + 1 })"
+            @input="patchStep(step.id, { artifact: ($event.target as HTMLInputElement).value })"
+            @blur="flush"
+          />
+        </div>
       </li>
     </ol>
 

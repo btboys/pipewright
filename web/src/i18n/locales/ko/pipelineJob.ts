@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: '복제한 작업 공간 루트 기준 상대 경로. 비움 = 작업 공간 루트',
   fieldArtifactPathLabel: '아티팩트 경로',
   fieldArtifactPathHint:
-    '선택, 한 줄에 한 개. 작업 공간 루트 기준 상대: 디렉터리→dist, *.jar→jar, 그 외 파일→archive. 한 노드에서 여러 개 출력 가능. 설정해야만 아티팩트 저장소에 보관되고 실행 상세에서 다운로드/배포 가능. 이미지 아티팩트는 「빌드」 노드(build_image)를 사용, 여기가 아님',
+    '선택, 한 줄에 한 개. 「이름=경로」로 아티팩트 이름을 지정할 수 있습니다(배포 디렉터리명/다운로드 파일명에 반영), 비우면 자동 이름 지정. 작업 공간 루트 기준 상대: 디렉터리→dist, *.jar→jar, 그 외 파일→archive. 한 노드에서 여러 개 출력 가능. 설정해야만 아티팩트 저장소에 보관되고 실행 상세에서 다운로드/배포 가능. 이미지 아티팩트는 「빌드」 노드(build_image)를 사용, 여기가 아님',
   fieldCachePathsLabel: '의존성 캐시 디렉터리',
   fieldCachePathsHint:
     '선택, 한 줄에 한 개, 작업 공간 루트 기준 상대. 설정해야만 캐시 활성화: 빌드 전 복원, 빌드 후 저장, 여러 실행에 걸쳐 의존성 재사용(node_modules/.m2/.gradle 등 재다운로드 방지). 캐시 문제는 빌드 결과에 절대 영향을 주지 않음',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: '한 줄에 하나의 key=value, 완전 자유. 명령 템플릿/아티팩트 경로에서 {\'{{key}}\'} 로 참조',
   fieldCommandTemplateLabel: '명령 템플릿',
   fieldCommandTemplateHint: '여러 줄. {\'{{매개변수}}\'} 는 매개변수 표의 값으로 치환, $ENV 는 컨테이너 내 shell 에 위임',
-  fieldTemplatedArtifactPathHint: '선택, 한 줄에 하나, {\'{{매개변수}}\'} 와 와일드카드 지원. 디렉터리→dist, *.jar→jar, 그 외→archive',
+  fieldTemplatedArtifactPathHint: '선택, 한 줄에 하나. 「이름=경로」로 아티팩트 이름 지정 가능(배포 디렉터리명/다운로드 파일명에 반영), 비우면 자동 이름 지정. {\'{{매개변수}}\'} 와 와일드카드 지원. 디렉터리→dist, *.jar→jar, 그 외→archive',
   fieldTemplatedWorkDirHint: '선택, 복제한 작업 공간 루트 기준 상대',
   fieldTemplatedCachePathsHint:
     '선택, 한 줄에 하나, 작업 공간 루트 기준 상대, {\'{{매개변수}}\'} 지원. 설정해야만 캐시 활성화: 빌드 전 복원, 빌드 후 저장, 실행에 걸쳐 의존성 재사용. 캐시 문제는 빌드 결과에 절대 영향을 주지 않음',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: '후속 모든 단계를 건너뜀',
   sbCondHintPost: '(성공으로 종료). 예',
   sbArtifactAria: '아티팩트 경로 {n}',
+  sbArtifactNameAria: '아티팩트 이름 {n}',
+  sbArtifactNamePh: '이름(비우면 자동)',
   sbEmpty: '아직 단계가 없습니다. 아래의 「단계 추가」를 눌러 시작하세요',
   sbAddStep: '단계 추가',
   sbAddCommandDesc: 'shell 명령(여러 줄 가능)',

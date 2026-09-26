@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/store"
 	"github.com/go-sql-driver/mysql"
-	"github.com/huangchengsir/pipewright/internal/store"
 )
 
 var schemaSeq atomic.Int64

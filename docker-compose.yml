@@ -8,7 +8,7 @@
 # 镜像已将 /data 设为 nonroot 属主与工作目录)。master key 务必持久保存:换 key 旧凭据无法解密。
 services:
   pipewright:
-    image: ghcr.io/huangchengsir/pipewright:${PIPEWRIGHT_VERSION:-latest}
+    image: ghcr.io/btboys/pipewright:${PIPEWRIGHT_VERSION:-latest}
     container_name: pipewright
     restart: unless-stopped
     ports:

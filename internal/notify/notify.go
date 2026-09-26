@@ -28,9 +28,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/i18n"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // 渠道类型枚举(DB 存小写字串;JSON 同名)。本期实现 webhook + email,其余占位。

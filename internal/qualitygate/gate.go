@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/testreport"
+	"github.com/btboys/pipewright/internal/testreport"
 )
 
 // Thresholds 是质量门禁阈值(取自 script job 的 config)。

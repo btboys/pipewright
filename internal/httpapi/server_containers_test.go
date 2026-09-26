@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // --- 纯解析单元测试 ---

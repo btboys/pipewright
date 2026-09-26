@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // e2eRegistryPort 是本测试起的本地匿名 registry:2 端口(127.0.0.1 only;避开 5000=AirPlay)。

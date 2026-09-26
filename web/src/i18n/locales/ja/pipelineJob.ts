@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: 'クローンしたワークスペースのルートからの相対。空 = ワークスペースのルート',
   fieldArtifactPathLabel: '成果物パス',
   fieldArtifactPathHint:
-    '任意、1 行 1 件。ワークスペースのルートからの相対:ディレクトリ→dist、*.jar→jar、その他のファイル→archive。1 ノードで複数出力可。設定した場合のみ成果物ストアにアーカイブされ、実行詳細でダウンロード/デプロイ可能。イメージ成果物は「ビルド」ノード(build_image)を使用、ここではない',
+    '任意、1 行 1 件。「名前=パス」と書くと成果物名を指定できます(デプロイ先ディレクトリ名/ダウンロード名に反映)、空なら自動命名。ワークスペースのルートからの相対:ディレクトリ→dist、*.jar→jar、その他のファイル→archive。1 ノードで複数出力可。設定した場合のみ成果物ストアにアーカイブされ、実行詳細でダウンロード/デプロイ可能。イメージ成果物は「ビルド」ノード(build_image)を使用、ここではない',
   fieldCachePathsLabel: '依存キャッシュディレクトリ',
   fieldCachePathsHint:
     '任意、1 行 1 件、ワークスペースのルートからの相対。設定した場合のみキャッシュ有効:ビルド前に復元、ビルド後に保存、複数回の実行で依存を再利用(node_modules/.m2/.gradle などの再取得を回避)。キャッシュの問題はビルド結果に影響しない',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: '1 行 1 件の key=value、完全に自由。コマンドテンプレート/成果物パスで {\'{{key}}\'} で参照',
   fieldCommandTemplateLabel: 'コマンドテンプレート',
   fieldCommandTemplateHint: '複数行。{\'{{パラメータ}}\'} はパラメータ表の値に置換、$ENV はコンテナ内 shell に任せる',
-  fieldTemplatedArtifactPathHint: '任意、1 行 1 件、{\'{{パラメータ}}\'} とワイルドカードに対応。ディレクトリ→dist、*.jar→jar、その他→archive',
+  fieldTemplatedArtifactPathHint: '任意、1 行 1 件。「名前=パス」で成果物名を指定可(デプロイ先ディレクトリ名/ダウンロード名に反映)、空なら自動命名。{\'{{パラメータ}}\'} とワイルドカードに対応。ディレクトリ→dist、*.jar→jar、その他→archive',
   fieldTemplatedWorkDirHint: '任意、クローンしたワークスペースのルートからの相対',
   fieldTemplatedCachePathsHint:
     '任意、1 行 1 件、ワークスペースのルートからの相対、{\'{{パラメータ}}\'} に対応。設定した場合のみキャッシュ有効:ビルド前に復元、ビルド後に保存、実行をまたいで依存を再利用。キャッシュの問題はビルド結果に影響しない',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: '後続のすべてのステップをスキップ',
   sbCondHintPost: '(成功で終了)。例',
   sbArtifactAria: '成果物パス {n}',
+  sbArtifactNameAria: '成果物名 {n}',
+  sbArtifactNamePh: '名前(空なら自動)',
   sbEmpty: 'まだステップがありません。下の「ステップを追加」から始めてください',
   sbAddStep: 'ステップを追加',
   sbAddCommandDesc: 'shell コマンド(複数行可)',

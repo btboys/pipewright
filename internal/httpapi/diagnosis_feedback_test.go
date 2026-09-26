@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // feedbackEnv 聚合反馈 server 测试夹具(便于按需取 store 做裸 DB 断言)。

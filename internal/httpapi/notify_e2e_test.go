@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/notify"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/notify"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // TestNotifyHookEndToEndWebhook 真验(Story 5.2 / FR-20):

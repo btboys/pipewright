@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/btboys/pipewright/internal/oauth"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/oauth"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // ---- OAuth 应用配置 DTO(冻结契约;camelCase;client_secret 仅掩码,绝无明文) ----

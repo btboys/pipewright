@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/ai"
+	"github.com/btboys/pipewright/internal/ai"
 )
 
 // ---- AI 配置 DTO(冻结契约;camelCase;apiKey 仅掩码,绝无明文) ----

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 // fakeAllocator 是注入用的假分配器:记录分配调用,按需返回 routeID / 错误。

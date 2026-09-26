@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // makeBareSourceRepo 在临时目录建一个含给定文件的裸仓库(file:// 可克隆),返回其 file:// URL。

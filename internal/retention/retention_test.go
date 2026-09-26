@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/storetest"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/storetest"
 )
 
 func mustExec(t *testing.T, db *sql.DB, q string, args ...any) {

@@ -109,6 +109,15 @@ describe('studioCompile', () => {
       const c = compileSteps([step('echo', { command: 'hello world' }), step('command', { command: '' })])
       expect(c.commandTemplate).toBe("echo 'hello world'")
     })
+
+    it('writes the artifact name as name=path (plain path when unnamed)', () => {
+      const c = compileSteps([
+        step('artifact', { artifact: '{{dir}}/dist', name: 'web-dist' }),
+        step('artifact', { artifact: 'out/bin' }),
+        step('artifact', { artifact: 'x', name: 'bad name' }),
+      ])
+      expect(c.artifactPath).toBe('web-dist={{dir}}/dist\nout/bin\nx')
+    })
   })
 
   describe('compileStudioConfig → templated config', () => {
@@ -212,8 +221,12 @@ describe('studioCompile', () => {
       const m = parseStudioConfig({ commandTemplate: 'make build', artifactPath: 'out/bin' })
       expect(m.steps.map((s) => ({ kind: s.kind, fields: s.fields }))).toEqual([
         { kind: 'command', fields: { command: 'make build' } },
-        { kind: 'artifact', fields: { artifact: 'out/bin' } },
+        { kind: 'artifact', fields: { artifact: 'out/bin', name: '' } },
       ])
+    })
+    it('recovers a legacy name=path artifact declaration into the name field', () => {
+      const m = parseStudioConfig({ commandTemplate: 'make build', artifactPath: 'web-dist=out/bin' })
+      expect(m.steps[1].fields).toEqual({ artifact: 'out/bin', name: 'web-dist' })
     })
     it('reads legacy commands when commandTemplate absent', () => {
       expect(parseStudioConfig({ commands: 'make build' }).steps[0].fields.command).toBe('make build')

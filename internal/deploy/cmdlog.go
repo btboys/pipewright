@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 const (

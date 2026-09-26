@@ -1,7 +1,7 @@
 #!/bin/sh
 # Pipewright 一键安装(Linux / macOS)。
 #
-#   curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh | sh
 #
 # 探测平台 → 从 GitHub Release 下载对应静态二进制 → 校验和核验 → 装到 /usr/local/bin。
 # 可配环境变量:
@@ -17,10 +17,10 @@
 #                   传 mysql + DSN(user:pw@tcp(host:3306)/db?parseTime=true&charset=utf8mb4)则用 MySQL。
 #
 # Windows 用户请到 Releases 页下载 .zip:
-#   https://github.com/huangchengsir/pipewright/releases
+#   https://github.com/btboys/pipewright/releases
 set -eu
 
-REPO="huangchengsir/pipewright"
+REPO="btboys/pipewright"
 BIN="pipewright"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 SERVICE_INSTALLED=0

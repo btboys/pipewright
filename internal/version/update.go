@@ -17,7 +17,7 @@ import (
 
 // defaultRepo 是检查更新所查询的 GitHub 仓库(owner/name)。可经 PIPEWRIGHT_RELEASE_REPO 覆盖
 // (便于 fork 指向自己的发布渠道)。
-const defaultRepo = "huangchengsir/pipewright"
+const defaultRepo = "btboys/pipewright"
 
 // checkTTL 是更新检查结果的缓存时长:GitHub 未鉴权 API 限速 60 次/小时/IP,缓存避免反复点击打爆。
 const checkTTL = 15 * time.Minute

@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // replayWindow 是 webhook 时间戳新鲜度窗口:|now - ts| 超过此值视为重放,拒绝(401)。

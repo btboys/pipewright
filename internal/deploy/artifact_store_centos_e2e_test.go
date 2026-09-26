@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/artifactstore"
+	"github.com/btboys/pipewright/internal/run"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/artifactstore"
-	"github.com/huangchengsir/pipewright/internal/run"
 )
 
 // TestE2EArtifactStoreDistUntar:制品库存 dist 的 tar.gz → 部署 → 容器内远端解包出真文件树。

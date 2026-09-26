@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/artifactstore"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/artifactstore"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // TestRestorePriorArtifactsJar 验证跨阶段产物传递:上游归档的 jar 真字节按 workspacePath 恢复到

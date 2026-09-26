@@ -6,8 +6,8 @@
 A single static Go binary (frontend embedded, zero runtime dependencies) —
 one tool replacing the "CI + Ansible/Kamal + Portainer" trio.
 
-[![Release](https://img.shields.io/github/v/release/huangchengsir/pipewright)](https://github.com/huangchengsir/pipewright/releases)
-[![CI](https://github.com/huangchengsir/pipewright/actions/workflows/ci.yml/badge.svg)](https://github.com/huangchengsir/pipewright/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/btboys/pipewright)](https://github.com/btboys/pipewright/releases)
+[![CI](https://github.com/btboys/pipewright/actions/workflows/ci.yml/badge.svg)](https://github.com/btboys/pipewright/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 English | [简体中文](README.zh-CN.md)
@@ -84,11 +84,11 @@ Pick any of three form factors. The platform itself is a single static binary wi
 Downloads the static binary for your platform from GitHub Releases and installs it to `/usr/local/bin` (with checksum verification + Docker detection):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh | sh
 
 # Pin a version / custom dir / auto-install Docker on Linux too:
 VERSION=v1.0.0 INSTALL_DIR=$HOME/.local/bin INSTALL_DOCKER=1 \
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh)"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh)"
 
 # Run (first launch bootstraps the admin; master key is for the credential vault)
 PIPEWRIGHT_MASTER_KEY=$(openssl rand -base64 32) \
@@ -99,23 +99,23 @@ PIPEWRIGHT_ADMIN_PASSWORD=change-me \
 **Recommended: install as a systemd service** (auto-start on boot + restart on crash + one-click self-update available; Linux, requires root). The script persists the master key to `/etc/pipewright/master.key`, stores data in `/var/lib/pipewright`, and writes config to `/etc/pipewright/pipewright.env`:
 
 ```bash
-SETUP_SERVICE=1 sh -c "$(curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh)"
+SETUP_SERVICE=1 sh -c "$(curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh)"
 # Status / logs: systemctl status pipewright  ·  journalctl -u pipewright -f
 # Change port etc.: edit /etc/pipewright/pipewright.env then systemctl restart pipewright
 
 # Use MySQL instead of the default SQLite (DSN is go-sql-driver format; parseTime=true is required):
 SETUP_SERVICE=1 PIPEWRIGHT_DB_DRIVER=mysql \
   PIPEWRIGHT_DB_DSN='user:pw@tcp(host:3306)/pipewright?parseTime=true&charset=utf8mb4' \
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/huangchengsir/pipewright/master/install.sh)"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/btboys/pipewright/master/install.sh)"
 ```
 
-> Windows users: download the `.zip` from [Releases](https://github.com/huangchengsir/pipewright/releases).
+> Windows users: download the `.zip` from [Releases](https://github.com/btboys/pipewright/releases).
 
 ### ② docker compose (recommended for self-hosting)
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/huangchengsir/pipewright/master/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/huangchengsir/pipewright/master/.env.example
+curl -fsSLO https://raw.githubusercontent.com/btboys/pipewright/master/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/btboys/pipewright/master/.env.example
 cp .env.example .env       # at minimum set PIPEWRIGHT_ADMIN_PASSWORD, and openssl rand -base64 32 for MASTER_KEY
 docker compose up -d       # data persists in the named volume pipewright-data; see .env comments to switch to MySQL
 ```
@@ -126,7 +126,7 @@ docker compose up -d       # data persists in the named volume pipewright-data; 
 docker run -d -p 8080:8080 -v pipewright-data:/data \
   -e PIPEWRIGHT_ADMIN_PASSWORD=change-me \
   -e PIPEWRIGHT_MASTER_KEY=$(openssl rand -base64 32) \
-  ghcr.io/huangchengsir/pipewright:latest
+  ghcr.io/btboys/pipewright:latest
 ```
 
 ### Build from source
@@ -157,7 +157,7 @@ A normal install only needs the first two (plus `PIPEWRIGHT_PUBLIC_URL` if you r
 | `PIPEWRIGHT_PUBLIC_URL` | Externally reachable base URL (e.g. `https://ci.example.com`). Required for webhook callbacks, OAuth redirects, signed approval links in notifications, and PR status links | none |
 | `PIPEWRIGHT_ADMIN_USERNAME` | Admin username on first launch | `admin` |
 | `PIPEWRIGHT_TRUST_PROXY` | Trust the first `X-Forwarded-For` hop as the audit client IP (`1`/`true`/`yes`/`on`). Leave off unless a trusted reverse proxy sits in front — otherwise anyone can forge audit source IPs | off |
-| `PIPEWRIGHT_RELEASE_REPO` | GitHub repo queried for update checks (change it for a fork) | `huangchengsir/pipewright` |
+| `PIPEWRIGHT_RELEASE_REPO` | GitHub repo queried for update checks (change it for a fork) | `btboys/pipewright` |
 | `PIPEWRIGHT_RUNTIME` | Set `docker` to declare a container deployment (affects self-update mode); otherwise auto-detected via `/.dockerenv` | auto-detect |
 | `PIPEWRIGHT_AUDIT_SINK` | Remote audit sink: an `http(s)://` endpoint, or any other value as a second local JSON Lines file path. Keeps audit records complete even if the local DB is wiped | none |
 
@@ -192,7 +192,7 @@ A normal install only needs the first two (plus `PIPEWRIGHT_PUBLIC_URL` if you r
 | `PIPEWRIGHT_PR_STATUS` | `1` forces PR status reporting on for **all** projects, ignoring the per-project toggle | off |
 | `PIPEWRIGHT_PR_STATUS_GITHUB_BASE` | GitHub API base URL (for GitHub Enterprise) | public GitHub |
 | `PIPEWRIGHT_PR_STATUS_GITEE_BASE` | Gitee API base URL (for self-hosted Gitee) | public Gitee |
-| `PIPEWRIGHT_CADDY_IMAGE` | Reverse-proxy image. The default is a self-built Caddy bundling the DNS-01, ratelimit, and layer4 plugins; stock `caddy:2` works but loses DNS-01/wildcard/TCP support | `ghcr.io/huangchengsir/pipewright-caddy:latest` |
+| `PIPEWRIGHT_CADDY_IMAGE` | Reverse-proxy image. The default is a self-built Caddy bundling the DNS-01, ratelimit, and layer4 plugins; stock `caddy:2` works but loses DNS-01/wildcard/TCP support | `ghcr.io/btboys/pipewright-caddy:latest` |
 | `PIPEWRIGHT_PREVIEW_SWEEP_INTERVAL` | How often to check whether preview environments can be reclaimed (Go duration, e.g. `10m`) | `5m` |
 
 **Ops monitoring**
@@ -327,7 +327,7 @@ single static binary (cmd/pipewright)
 
 ## Project Status
 
-✅ **Officially released** and under active iteration — see the latest version in [Releases](https://github.com/huangchengsir/pipewright/releases) (tag-driven releases: 6-platform binaries + ghcr multi-arch images). Already running in real production, carrying builds, deployments, and daily ops for multiple projects.
+✅ **Officially released** and under active iteration — see the latest version in [Releases](https://github.com/btboys/pipewright/releases) (tag-driven releases: 6-platform binaries + ghcr multi-arch images). Already running in real production, carrying builds, deployments, and daily ops for multiple projects.
 
 ## Contributing
 

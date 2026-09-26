@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/btboys/pipewright/internal/chain"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/chain"
 )
 
 // chain.go 暴露项目流水线串联配置端点(FR-8-11):上游成功后触发下游流水线。

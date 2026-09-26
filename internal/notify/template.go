@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/i18n"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/i18n"
 )
 
 // 模板领域错误。

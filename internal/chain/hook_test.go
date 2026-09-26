@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // setRunSuccess 直接把某 run 置为 success 终态(测试用:绕过桩 runner / 状态机驱动,直击钩子逻辑)。

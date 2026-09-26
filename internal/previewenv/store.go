@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btboys/pipewright/internal/store"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/store"
 )
 
 // Store 持久化预览环境 + 预览配置(参数化 SQL,两方言一致)。

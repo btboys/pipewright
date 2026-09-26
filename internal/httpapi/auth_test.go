@@ -12,9 +12,9 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/storetest"
 )
 
 // ---- test helpers --------------------------------------------------------

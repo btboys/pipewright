@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // Compose / Stacks 管理(Portainer 式)。经 SSH 跑 `docker compose`(v2 插件),目标机零侵入。

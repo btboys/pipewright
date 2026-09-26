@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: 'Relativ zum Wurzelverzeichnis des geklonten Workspaces; leer = Workspace-Wurzel',
   fieldArtifactPathLabel: 'Artefaktpfade',
   fieldArtifactPathHint:
-    'Optional, einer pro Zeile. Relativ zur Workspace-Wurzel: Verzeichnis→dist, *.jar→jar, andere Dateien→archive. Ein Knoten kann mehrere ausgeben; nur wenn gesetzt, werden sie im Artefaktspeicher archiviert und in den Ausführungsdetails herunterladbar/bereitstellbar. Für Image-Artefakte den „Build“-Knoten (build_image) verwenden, nicht hier',
+    'Optional, einer pro Zeile; „Name=Pfad“ vergibt einen eigenen Artefaktnamen (für Bereitstellungsordner und Download-Dateiname), leer = automatisch. Relativ zur Workspace-Wurzel: Verzeichnis→dist, *.jar→jar, andere Dateien→archive. Ein Knoten kann mehrere ausgeben; nur wenn gesetzt, werden sie im Artefaktspeicher archiviert und in den Ausführungsdetails herunterladbar/bereitstellbar. Für Image-Artefakte den „Build“-Knoten (build_image) verwenden, nicht hier',
   fieldCachePathsLabel: 'Abhängigkeits-Cache-Verzeichnisse',
   fieldCachePathsHint:
     'Optional, eines pro Zeile, relativ zur Workspace-Wurzel. Nur wenn gesetzt, wird das Caching aktiviert: vor dem Build wiederhergestellt, danach gespeichert, Abhängigkeiten werden über mehrere Läufe hinweg wiederverwendet (vermeidet erneutes Herunterladen von node_modules/.m2/.gradle usw.). Cache-Probleme beeinflussen das Build-Ergebnis niemals',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: 'Ein key=value pro Zeile, völlig frei; in der Befehlsvorlage / den Artefaktpfaden mit {\'{{key}}\'} referenzieren',
   fieldCommandTemplateLabel: 'Befehlsvorlage',
   fieldCommandTemplateHint: 'Mehrzeilig; {\'{{Parameter}}\'} wird durch den Wert der Parametertabelle ersetzt, $ENV wird weiterhin von der Shell im Container verarbeitet',
-  fieldTemplatedArtifactPathHint: 'Optional, einer pro Zeile, unterstützt {\'{{Parameter}}\'} und Wildcards; Verzeichnis→dist, *.jar→jar, andere→archive',
+  fieldTemplatedArtifactPathHint: 'Optional, einer pro Zeile; „Name=Pfad“ vergibt einen eigenen Artefaktnamen (Bereitstellungsordner / Download-Dateiname), leer = automatisch; unterstützt {\'{{Parameter}}\'} und Wildcards; Verzeichnis→dist, *.jar→jar, andere→archive',
   fieldTemplatedWorkDirHint: 'Optional, relativ zur Wurzel des geklonten Workspaces',
   fieldTemplatedCachePathsHint:
     'Optional, eines pro Zeile, relativ zur Workspace-Wurzel, unterstützt {\'{{Parameter}}\'}. Nur wenn gesetzt, wird das Caching aktiviert: vor dem Build wiederhergestellt, danach gespeichert, Abhängigkeiten werden über Läufe hinweg wiederverwendet. Cache-Probleme beeinflussen das Build-Ergebnis niemals',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: 'alle nachfolgenden Schritte überspringen',
   sbCondHintPost: ' (erfolgreich beenden). z. B.',
   sbArtifactAria: 'Artefaktpfad {n}',
+  sbArtifactNameAria: 'Artefaktname {n}',
+  sbArtifactNamePh: 'Name (leer = automatisch)',
   sbEmpty: 'Noch keine Schritte, klicke unten auf „Schritt hinzufügen“, um zu beginnen',
   sbAddStep: 'Schritt hinzufügen',
   sbAddCommandDesc: 'Shell-Befehl (mehrzeilig)',

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // GenerateCompose:中文需求 → docker-compose.yml(容器管理「AI 生成 compose」)。

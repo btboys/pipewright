@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/store"
 )
 
 // concurrency.go 实现项目级并发上限配置(FR-8-10 并发/队列控制)。

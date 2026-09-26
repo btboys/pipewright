@@ -3,4 +3,4 @@
 # 后面的规则覆盖前面的 / later matches take precedence.
 
 # 默认:全部由仓库所有者审阅 / default: everything reviewed by the repo owner
-*       @huangchengsir
+*       @btboys

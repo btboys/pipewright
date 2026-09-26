@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/huangchengsir/pipewright/internal/retention"
+	"github.com/btboys/pipewright/internal/retention"
 )
 
 // retentionConfigDTO 是运行数据保留策略(全局)。

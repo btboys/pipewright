@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/testreport"
+	"github.com/btboys/pipewright/internal/testreport"
 )
 
 func TestEvaluate_NoThresholds_AlwaysPass(t *testing.T) {

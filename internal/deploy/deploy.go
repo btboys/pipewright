@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/artifactstore"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/target"
+	"github.com/btboys/pipewright/internal/artifactstore"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/target"
 )
 
 // 领域错误。错误体永不含明文 / 私钥 / 口令 / 内部栈。

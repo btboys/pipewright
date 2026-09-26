@@ -82,7 +82,7 @@ const STEP_FIELDS = computed<Record<StudioStepKind, FieldDef[][]>>(() => ({
   env: [[{ field: 'envKey', label: t('studio.fieldEnvKey') }, { field: 'envValue', label: t('studio.fieldEnvValue') }]],
   workDir: [[{ field: 'dir', label: t('studio.fieldTargetDir') }]],
   path: [[{ field: 'dir', label: t('studio.fieldPathDir'), placeholder: 'node_modules/.bin' }]],
-  artifact: [[{ field: 'artifact', label: t('studio.fieldArtifactPath') }]],
+  artifact: [[{ field: 'artifact', label: t('studio.fieldArtifactPath') }, { field: 'name', label: t('studio.fieldArtifactName'), placeholder: 'web-dist' }]],
   download: [[{ field: 'url', label: 'URL', placeholder: 'https://…' }, { field: 'out', label: t('studio.fieldSaveAs') }]],
   extract: [[{ field: 'file', label: t('studio.fieldArchiveFile'), placeholder: 'x.tar.gz' }, { field: 'dir', label: t('studio.fieldExtractTo') }]],
   condition: [[{ field: 'condition', label: t('studio.fieldCondition'), placeholder: 'test -f package.json' }]],

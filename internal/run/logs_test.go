@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/mask"
+	"github.com/btboys/pipewright/internal/mask"
 )
 
 // TestAppendLogSeqMonotonic 验证 AppendLog 在同一 run 内分配单调递增 seq(从 1 起)。

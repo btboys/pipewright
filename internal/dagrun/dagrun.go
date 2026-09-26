@@ -21,9 +21,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/huangchengsir/pipewright/internal/dag"
-	"github.com/huangchengsir/pipewright/internal/pipeline"
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/dag"
+	"github.com/btboys/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // SpecLoader 加载某项目「在某运行分支上」的流水线配置。

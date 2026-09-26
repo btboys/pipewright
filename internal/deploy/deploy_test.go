@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/storetest"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/storetest"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // ---- stub target.Service(可控 Exec 结果,捕获命令以断言 array 化 + 不泄漏) ----------

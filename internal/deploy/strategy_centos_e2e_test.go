@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/run"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/run"
 )
 
 // TestE2EStrategyCanaryAbort:3 台,金丝雀(第 1 台)不可达 → 金丝雀 failed、其余 2 台**未被部署**。

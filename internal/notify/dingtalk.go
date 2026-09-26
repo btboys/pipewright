@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/i18n"
 )
 
 // 钉钉自定义群机器人投递。

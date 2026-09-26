@@ -11,9 +11,9 @@ import (
 
 // 构建期可注入变量。注入路径:
 //
-//	github.com/huangchengsir/pipewright/internal/version.Version=v1.2.3
-//	github.com/huangchengsir/pipewright/internal/version.Commit=<git sha>
-//	github.com/huangchengsir/pipewright/internal/version.Date=<RFC3339>
+//	github.com/btboys/pipewright/internal/version.Version=v1.2.3
+//	github.com/btboys/pipewright/internal/version.Commit=<git sha>
+//	github.com/btboys/pipewright/internal/version.Date=<RFC3339>
 var (
 	// Version 是语义化版本(发版 tag,如 v1.2.3);开发态为 "dev"。
 	Version = "dev"

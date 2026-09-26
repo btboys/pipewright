@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/proxy"
+	"github.com/btboys/pipewright/internal/target"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/proxy"
-	"github.com/huangchengsir/pipewright/internal/target"
 )
 
 // 审计 action / target(自动 HTTPS 反代路由写操作)。复用既有 audit.Recorder;detail 绝无敏感信息。

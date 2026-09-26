@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // setupDoraServer 构造带 auth + DORA 指标端点的测试 server。返回 server / client / csrf / DB。

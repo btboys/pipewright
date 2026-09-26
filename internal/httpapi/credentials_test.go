@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/auth"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/auth"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 const testPEM = "-----BEGIN OPENSSH PRIVATE KEY-----\nPLAINTEXTSECRETMARKER\n-----END OPENSSH PRIVATE KEY-----"

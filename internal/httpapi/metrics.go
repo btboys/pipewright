@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/anomaly"
-	"github.com/huangchengsir/pipewright/internal/metrics"
+	"github.com/btboys/pipewright/internal/anomaly"
+	"github.com/btboys/pipewright/internal/metrics"
 )
 
 // 服务器指标时序历史(异常检测「看趋势」折线图)。后台采样器周期性把每台可达服务器的

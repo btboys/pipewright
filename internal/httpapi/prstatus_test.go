@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huangchengsir/pipewright/internal/project"
-	"github.com/huangchengsir/pipewright/internal/prstatus"
-	"github.com/huangchengsir/pipewright/internal/run"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/project"
+	"github.com/btboys/pipewright/internal/prstatus"
+	"github.com/btboys/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // stubProberPR 是不触网的远端探测桩(本测试只走 SQL 种子 + Get/Update,实际不会被调用)。

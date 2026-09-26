@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/auth"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/auth"
 )
 
 // accountService 是账户设置 handler 依赖的窄接口(改口令 / 会话列表 / 撤销)。

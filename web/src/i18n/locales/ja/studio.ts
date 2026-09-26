@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: '対象ディレクトリ',
   fieldPathDir: 'PATH に追加するディレクトリ',
   fieldArtifactPath: '成果物パス (glob)',
+  fieldArtifactName: '成果物名(空なら自動)',
   fieldSaveAs: '保存先名',
   fieldArchiveFile: 'アーカイブファイル',
   fieldExtractTo: '展開先ディレクトリ',

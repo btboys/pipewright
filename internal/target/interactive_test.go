@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/vault"
+	"github.com/btboys/pipewright/internal/vault"
 )
 
 // fakeSession 是一个内存版 Session,供单测交互泵/resize/close/命令 array 化(不触网)。

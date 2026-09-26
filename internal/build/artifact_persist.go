@@ -16,7 +16,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // storeJarBytes 把 jar 文件字节存入制品库,改写 art.Reference 为存储句柄并补 metadata。

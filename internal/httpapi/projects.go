@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/project"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/project"
 )
 
 // projectDTO 是项目对外响应体(冻结契约;camelCase;无明文/无密文)。

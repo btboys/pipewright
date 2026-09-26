@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huangchengsir/pipewright/internal/run"
+	"github.com/btboys/pipewright/internal/run"
 )
 
 // 交互式分批部署:首批成功 → 其余 pending + 暂停(run 不置失败终态),首批未触达其余机。

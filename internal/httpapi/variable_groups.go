@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/btboys/pipewright/internal/audit"
+	"github.com/btboys/pipewright/internal/library"
 	"github.com/go-chi/chi/v5"
-	"github.com/huangchengsir/pipewright/internal/audit"
-	"github.com/huangchengsir/pipewright/internal/library"
 )
 
 // variable_groups.go 暴露变量组端点(FR-8-13 复用基座 · 对标云效变量组 / GitLab CI variable groups)。

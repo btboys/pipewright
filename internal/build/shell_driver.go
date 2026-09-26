@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huangchengsir/pipewright/internal/pipeline"
+	"github.com/btboys/pipewright/internal/pipeline"
 )
 
 // shellDriver 是默认 Driver:shell 到探测出的容器 CLI(bin),所有命令经 Commander 以 array 执行。

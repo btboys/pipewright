@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btboys/pipewright/internal/store"
+	"github.com/btboys/pipewright/internal/vault"
 	"github.com/google/uuid"
-	"github.com/huangchengsir/pipewright/internal/store"
-	"github.com/huangchengsir/pipewright/internal/vault"
 )
 
 // 未匹配策略枚举(DB 存 snake/小写字串;JSON camelCase 字段)。

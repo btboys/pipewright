@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/huangchengsir/pipewright/internal/i18n"
+	"github.com/btboys/pipewright/internal/i18n"
 )
 
 // localeResponseWriter carries the resolved request locale so writeError can

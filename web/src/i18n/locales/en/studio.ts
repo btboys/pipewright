@@ -49,6 +49,7 @@ export default {
   fieldTargetDir: 'Target directory',
   fieldPathDir: 'Directory to append to PATH',
   fieldArtifactPath: 'Artifact path (glob)',
+  fieldArtifactName: 'Artifact name (auto if empty)',
   fieldSaveAs: 'Save as',
   fieldArchiveFile: 'Archive file',
   fieldExtractTo: 'Extract to directory',

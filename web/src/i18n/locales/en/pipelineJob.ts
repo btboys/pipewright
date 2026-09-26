@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: 'Relative to the cloned workspace root; empty = workspace root',
   fieldArtifactPathLabel: 'Artifact paths',
   fieldArtifactPathHint:
-    'Optional, one per line. Relative to the workspace root: directory→dist, *.jar→jar, other files→archive. A node may emit several; only when set are they archived to the artifact store and downloadable/deployable in run details. For image artifacts use the “Build” node (build_image), not here',
+    'Optional, one per line; write “name=path” to give a custom artifact name (used as the deploy dir and download filename), empty = auto-named. Relative to the workspace root: directory→dist, *.jar→jar, other files→archive. A node may emit several; only when set are they archived to the artifact store and downloadable/deployable in run details. For image artifacts use the “Build” node (build_image), not here',
   fieldCachePathsLabel: 'Dependency cache dirs',
   fieldCachePathsHint:
     'Optional, one per line, relative to the workspace root. Only when set is caching enabled: restored before the build, saved after, reusing dependencies across runs (avoids re-pulling node_modules/.m2/.gradle etc.). Cache problems never affect build results',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: 'One key=value per line, fully free-form; reference with {\'{{key}}\'} in the command template / artifact paths',
   fieldCommandTemplateLabel: 'Command template',
   fieldCommandTemplateHint: 'Multi-line; {\'{{param}}\'} is replaced with the param table value, $ENV is still handled by the in-container shell',
-  fieldTemplatedArtifactPathHint: 'Optional, one per line, supports {\'{{param}}\'} and globs; directory→dist, *.jar→jar, other→archive',
+  fieldTemplatedArtifactPathHint: 'Optional, one per line; write “name=path” for a custom artifact name (deploy dir / download filename), empty = auto-named; supports {\'{{param}}\'} and globs; directory→dist, *.jar→jar, other→archive',
   fieldTemplatedWorkDirHint: 'Optional, relative to the cloned workspace root',
   fieldTemplatedCachePathsHint:
     'Optional, one per line, relative to the workspace root, supports {\'{{param}}\'}. Only when set is caching enabled: restored before the build, saved after, reusing deps across runs. Cache problems never affect build results',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: 'skip all subsequent steps',
   sbCondHintPost: ' (succeed early). e.g.',
   sbArtifactAria: 'Artifact path {n}',
+  sbArtifactNameAria: 'Artifact name {n}',
+  sbArtifactNamePh: 'Name (auto if empty)',
   sbEmpty: 'No steps yet, click “Add step” below to start',
   sbAddStep: 'Add step',
   sbAddCommandDesc: 'shell command (multi-line)',

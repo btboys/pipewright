@@ -33,7 +33,7 @@ export default {
   fieldWorkDirHint: '相對複製工作區根;留空為工作區根',
   fieldArtifactPathLabel: '產物路徑',
   fieldArtifactPathHint:
-    '可選,每行一條。相對工作區根:目錄→dist、*.jar→jar、其它檔案→archive。一個節點可出多件;填了才歸檔進製品庫並在執行詳情可下載/部署。映像產物請用「建置」節點(build_image),不在這裡',
+    '可選,每行一條,行內可寫「名稱=路徑」自訂產物名(部署目錄名/下載名隨之),留空自動命名。相對工作區根:目錄→dist、*.jar→jar、其它檔案→archive。一個節點可出多件;填了才歸檔進製品庫並在執行詳情可下載/部署。映像產物請用「建置」節點(build_image),不在這裡',
   fieldCachePathsLabel: '相依快取目錄',
   fieldCachePathsHint:
     '可選,每行一條,相對工作區根。配了才啟用快取:建置前還原、建置後儲存,跨多次執行複用相依(免重複拉 node_modules/.m2/.gradle 等)。快取問題絕不影響建置結果',
@@ -137,7 +137,7 @@ export default {
   fieldParamsHint: '每行一條 key=value,完全自由;命令範本/產物路徑裡用 {\'{{key}}\'} 引用',
   fieldCommandTemplateLabel: '命令範本',
   fieldCommandTemplateHint: '多行;{\'{{參數}}\'} 會被參數表的值取代,$ENV 仍交給容器內 shell',
-  fieldTemplatedArtifactPathHint: '可選,每行一條,支援 {\'{{參數}}\'} 與萬用字元;目錄→dist、*.jar→jar、其它→archive',
+  fieldTemplatedArtifactPathHint: '可選,每行一條,行內可寫「名稱=路徑」自訂產物名(部署目錄名/下載名隨之),留空自動命名;支援 {\'{{參數}}\'} 與萬用字元;目錄→dist、*.jar→jar、其它→archive',
   fieldTemplatedWorkDirHint: '可選,相對複製工作區根',
   fieldTemplatedCachePathsHint:
     '可選,每行一條,相對工作區根,支援 {\'{{參數}}\'}。配了才啟用快取:建置前還原、建置後儲存,跨執行複用相依。快取問題絕不影響建置結果',
@@ -270,6 +270,8 @@ export default {
   sbCondHintStrong: '跳過後續所有步驟',
   sbCondHintPost: '(成功結束)。如',
   sbArtifactAria: '產物路徑 {n}',
+  sbArtifactNameAria: '產物名稱 {n}',
+  sbArtifactNamePh: '名稱(留空自動)',
   sbEmpty: '還沒有步驟,點下方「加步驟」開始',
   sbAddStep: '加步驟',
   sbAddCommandDesc: 'shell 命令(可多行)',
