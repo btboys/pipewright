@@ -306,6 +306,8 @@ func writeDeployError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "run_not_found", "运行不存在")
 	case errors.Is(err, deploy.ErrRunNotSuccessful):
 		writeError(w, http.StatusUnprocessableEntity, "run_not_successful", "运行非成功态,无可部署产物")
+	case errors.Is(err, deploy.ErrArtifactNotSelected):
+		writeError(w, http.StatusUnprocessableEntity, "artifact_not_selected", "请选择要部署的产物")
 	case errors.Is(err, deploy.ErrArtifactNotFound):
 		writeError(w, http.StatusUnprocessableEntity, "artifact_not_found", "该运行下不存在指定产物")
 	case errors.Is(err, deploy.ErrServerNotFound):

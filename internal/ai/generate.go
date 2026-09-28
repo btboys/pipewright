@@ -404,10 +404,10 @@ needs 填「本阶段内它所依赖的其它 job 的 name」(数组)。**凡有
 
 ## 每个节点的 config(关键!尽量据仓库分析填满,让流水线直接可用)
 为每个 job 填 "config" 对象,**凡能从仓库分析推断的都填**;只有环境相关项(serverId/channel/credentialId)留空给用户选。各类型 config 字段:
-- build_frontend/build_backend/script:image(运行镜像,据语言/版本选,如 node:20、maven:3.9-eclipse-temurin-21)、commands(多行命令,据构建工具写,如 "cd <子目录>\nmvn -B -DskipTests package")、artifactPath(产物路径,如 "backend/target/*.jar"、"frontend/dist")。命令里的子目录要用分析里检测到的真实路径(如 backend/、frontend/)。
+- build_frontend/build_backend/script:image(运行镜像,据语言/版本选,如 node:20、maven:3.9-eclipse-temurin-21)、commands(多行命令,据构建工具写,如 "cd <子目录>\nmvn -B -DskipTests package")、artifactPath(产物路径,**每行写成「名称=路径」并给产物起个短名**,如 "api=backend/target/*.jar"、"web=frontend/dist";部署节点靠这个名字选产物,所以**必须命名**)。命令里的子目录要用分析里检测到的真实路径(如 backend/、frontend/)。
 - build_image:buildModel("dockerfile" 有 Dockerfile 否则 "toolchain")、dockerfilePath(检测到的 Dockerfile 路径,如 "backend/Dockerfile")、context(Dockerfile 所在目录,如 "backend")、artifactType("image")。
 - push_image:无需 config(随 build_image 推送)。
-- deploy_ssh/deploy_frontend:artifactType("image" 或 "dist")、containerName(据项目名取,如 "<proj>-app")、ports(如 "8080:8080")、strategy("recreate"|"rolling");serverId 留空(用户选目标机)。
+- deploy_ssh/deploy_frontend:artifactName(**必填**:要部署的产物名。文件产物填构建节点 artifactPath 里声明的名字,如 "web"/"api";部署镜像时填项目 slug,即项目名的小写连字符形式,如项目名 "Acme Shop" → "acme-shop")、containerName(仅镜像部署,据项目名取,如 "<proj>-app")、ports(仅镜像部署,如 "8080:8080")、strategy("recreate"|"rolling");serverId 留空(用户选目标机)。**不要再写 artifactType**(产物类型偏好已废除)。
 - health_check:probeMode("http")、url(据服务端口/框架填,Spring Boot 用 "http://localhost:<宿主端口>/actuator/health",其它用 "/healthz")、expectStatus("200")、retries("10")、intervalSeconds("3")。
 - notify:titleTemplate/bodyTemplate(可用 {{project}} {{branch}} {{status}});channel 留空(用户选渠道)。
 - git_source:config 留空 {}。
@@ -418,11 +418,11 @@ needs 填「本阶段内它所依赖的其它 job 的 name」(数组)。**凡有
   "stages": [
     { "name": "流水线源", "kind": "source", "jobs": [ { "name": "拉取源码", "type": "git_source", "summary": "...", "config": {} } ] },
     { "name": "构建镜像", "kind": "build", "jobs": [
-        { "name": "后端构建", "type": "build_backend", "summary": "...", "config": { "image": "maven:3.9-eclipse-temurin-21", "commands": "cd backend\nmvn -B -DskipTests package", "artifactPath": "backend/target/*.jar" } },
-        { "name": "前端构建", "type": "build_frontend", "summary": "...", "config": { "image": "node:20", "commands": "cd frontend\nnpm install\nnpm run build", "artifactPath": "frontend/dist" } },
+        { "name": "后端构建", "type": "build_backend", "summary": "...", "config": { "image": "maven:3.9-eclipse-temurin-21", "commands": "cd backend\nmvn -B -DskipTests package", "artifactPath": "api=backend/target/*.jar" } },
+        { "name": "前端构建", "type": "build_frontend", "summary": "...", "config": { "image": "node:20", "commands": "cd frontend\nnpm install\nnpm run build", "artifactPath": "web=frontend/dist" } },
         { "name": "构建镜像", "type": "build_image", "summary": "...", "needs": ["后端构建", "前端构建"], "config": { "buildModel": "dockerfile", "dockerfilePath": "backend/Dockerfile", "context": "backend", "artifactType": "image" } } ] },
     { "name": "部署", "kind": "deploy", "jobs": [
-        { "name": "SSH 部署", "type": "deploy_ssh", "summary": "...", "config": { "artifactType": "image", "containerName": "app", "ports": "8080:8080", "strategy": "recreate" } },
+        { "name": "SSH 部署", "type": "deploy_ssh", "summary": "...", "config": { "artifactName": "acme-shop", "containerName": "app", "ports": "8080:8080", "strategy": "recreate" } },
         { "name": "健康检查", "type": "health_check", "summary": "...", "needs": ["SSH 部署"], "config": { "probeMode": "http", "url": "http://localhost:8080/actuator/health", "expectStatus": "200", "retries": "10", "intervalSeconds": "3" } } ] }
   ],
   "build": { "model": "toolchain|dockerfile", "toolchain": { "language": "node|go|java|python", "version": "..." }, "artifactType": "image|jar|dist", "dockerfilePath": "" },

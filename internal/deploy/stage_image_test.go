@@ -10,8 +10,8 @@ import (
 )
 
 // stage_image_test.go 覆盖「流水线部署节点」(DeployForStage)对 **镜像产物** 的部署编排:
-//   - 仅镜像产物时,DeployForStage 选中镜像并 docker pull → rm → run(不再 ErrArtifactNotFound)。
-//   - 镜像 + 文件产物并存时的优先级(默认文件优先;cfg["artifactType"]=image 选镜像)。
+//   - 部署节点按名选产物(cfg["artifactName"],即 UI 的「部署产物」下拉);选镜像 → docker
+//     pull → rm → run;未选 → ErrArtifactNotSelected(类型偏好已废除,平台不替用户猜)。
 //   - cfg 驱动的容器名 / 端口 / runArgs 原样进 docker run(array 化,不拼 shell)。
 //   - 蓝绿策略下镜像走 stage(pull)→ cutover(run);健康失败回滚上一镜像。
 //   - 文件产物路径不受影响(回归保护)。
@@ -57,7 +57,7 @@ func runCmd(calls [][]string) []string {
 	return nil
 }
 
-// TestStageDeploysImageArtifact 仅镜像产物 → DeployForStage 部署镜像(此前被跳过 → ErrArtifactNotFound)。
+// TestStageDeploysImageArtifact 按名选中镜像产物 → DeployForStage 部署镜像(docker pull → run)。
 func TestStageDeploysImageArtifact(t *testing.T) {
 	db := testDB(t)
 	rsvc := run.New(db)
@@ -66,7 +66,8 @@ func TestStageDeploysImageArtifact(t *testing.T) {
 	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactImage, "registry/shop:1.0")
 
 	svc := New(tgt, rsvc)
-	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID}, nil, "")
+	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID},
+		map[string]string{"artifactName": "shop"}, "")
 	if err != nil {
 		t.Fatalf("DeployForStage: %v", err)
 	}
@@ -85,8 +86,8 @@ func TestStageDeploysImageArtifact(t *testing.T) {
 	}
 }
 
-// TestStagePrefersFileArtifactByDefault 镜像+文件并存,默认(cfg 空)优先文件发布(保持既有行为)。
-func TestStagePrefersFileArtifactByDefault(t *testing.T) {
+// TestStageDeploysFileArtifactByName 镜像 + 文件产物并存,按名选文件产物 → 走文件发布,不碰镜像。
+func TestStageDeploysFileArtifactByName(t *testing.T) {
 	db := testDB(t)
 	rsvc := run.New(db)
 	tgt := &stubTarget{}
@@ -95,34 +96,35 @@ func TestStagePrefersFileArtifactByDefault(t *testing.T) {
 	addArtifact(t, rsvc, runID, run.ArtifactDist, "web", "dist/shop.tar.gz")
 
 	svc := New(tgt, rsvc)
-	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID}, nil, "")
+	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID},
+		map[string]string{"artifactName": "web"}, "")
 	if err != nil {
 		t.Fatalf("DeployForStage: %v", err)
 	}
 	if len(res) != 1 || res[0].Status != run.TargetSuccess {
 		t.Fatalf("want 1 success, got %+v", res)
 	}
-	// 默认应走文件发布(dist → ln -sfn current),不应 docker pull。
+	// 文件发布:dist → ln -sfn current;不应 docker pull。
 	if !hasCmd(tgt.calls, "ln", "-sfn") {
-		t.Fatalf("默认应走文件发布(软链切换): %v", tgt.calls)
+		t.Fatalf("选文件产物应走文件发布(软链切换): %v", tgt.calls)
 	}
 	if hasCmd(tgt.calls, "docker", "pull") {
-		t.Fatalf("默认不应部署镜像: %v", tgt.calls)
+		t.Fatalf("选文件产物不应部署镜像: %v", tgt.calls)
 	}
 }
 
-// TestStageSelectsImageWhenConfigured 镜像+文件并存,cfg["artifactType"]=image → 选镜像。
-func TestStageSelectsImageWhenConfigured(t *testing.T) {
+// TestStageSelectsImageByName 镜像 + 文件产物并存,按名选镜像 → 部署镜像(不再有类型偏好)。
+func TestStageSelectsImageByName(t *testing.T) {
 	db := testDB(t)
 	rsvc := run.New(db)
 	tgt := &stubTarget{}
 	srv := seedServer(t, tgt, "web-1")
 	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactDist, "dist/shop.tar.gz")
-	addArtifact(t, rsvc, runID, run.ArtifactImage, "shop", "registry/shop:2.0")
+	addArtifact(t, rsvc, runID, run.ArtifactImage, "acme-shop", "registry/shop:2.0")
 
 	svc := New(tgt, rsvc)
 	res, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID},
-		map[string]string{"artifactType": "image"}, "")
+		map[string]string{"artifactName": "acme-shop"}, "")
 	if err != nil {
 		t.Fatalf("DeployForStage: %v", err)
 	}
@@ -130,7 +132,7 @@ func TestStageSelectsImageWhenConfigured(t *testing.T) {
 		t.Fatalf("want 1 success, got %+v", res)
 	}
 	if !hasCmd(tgt.calls, "docker", "pull", "registry/shop:2.0") {
-		t.Fatalf("cfg image 偏好应部署镜像: %v", tgt.calls)
+		t.Fatalf("按名选镜像应部署镜像: %v", tgt.calls)
 	}
 	if hasCmd(tgt.calls, "ln", "-sfn") {
 		t.Fatalf("选镜像时不应走文件发布: %v", tgt.calls)
@@ -147,6 +149,7 @@ func TestStageImageHonorsContainerNamePortsRunArgs(t *testing.T) {
 
 	svc := New(tgt, rsvc)
 	cfg := map[string]string{
+		"artifactName":  "shop",
 		"containerName": "shopapp",
 		"ports":         "8080:80, 9000:9000",
 		"runArgs":       "-e KEY=value --restart always",
@@ -194,7 +197,7 @@ func TestStageImageBlueGreen(t *testing.T) {
 	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactImage, "registry/shop:2.0")
 
 	svc := New(tgt, rsvc)
-	cfg := map[string]string{"containerName": "shop", "ports": "80:80"}
+	cfg := map[string]string{"artifactName": "shop", "containerName": "shop", "ports": "80:80"}
 	res, err := svc.DeployForStage(context.Background(), runID, []string{s1.ID, s2.ID}, cfg, "blue_green")
 	if err != nil {
 		t.Fatalf("DeployForStage: %v", err)
@@ -368,49 +371,44 @@ func mustArtID(t *testing.T, rsvc run.Service, runID string) string {
 	return arts[0].ID
 }
 
-// TestPickStageArtifact 单测产物选取优先级矩阵。
+// TestPickStageArtifact 单测按名选取:只认名字、只认可部署产物,其余一律 nil(诚实失败)。
 func TestPickStageArtifact(t *testing.T) {
-	img := run.Artifact{Type: run.ArtifactImage, Reference: "img:1"}
-	dist := run.Artifact{Type: run.ArtifactDist, Reference: "dist"}
-	jar := run.Artifact{Type: run.ArtifactJar, Reference: "app.jar"}
+	img := run.Artifact{Type: run.ArtifactImage, Name: "acme-shop", Reference: "img:1"}
+	dist := run.Artifact{Type: run.ArtifactDist, Name: "web", Reference: "dist"}
+	jar := run.Artifact{Type: run.ArtifactJar, Name: "api", Reference: "app.jar"}
 	// 多件同类产物(一次构建产出多个前端 dist)——按名指定的核心场景。
 	distA := run.Artifact{Type: run.ArtifactDist, Name: "fxy_admin_front", Reference: "fxy_admin_front/"}
 	distB := run.Artifact{Type: run.ArtifactDist, Name: "ym_client_front", Reference: "ym_client_front/"}
 	distC := run.Artifact{Type: run.ArtifactDist, Name: "fxy_client_front", Reference: "fxy_client_front/"}
 	multi := []run.Artifact{distA, distB, distC}
+	// 镜像 + 文件并存:按名选谁就部署谁(类型不再参与挑选)。
+	both := []run.Artifact{dist, jar, img}
 
 	cases := []struct {
 		name     string
 		arts     []run.Artifact
-		prefer   string
 		wantName string
 		want     string // 期望选中的 Type;"" = nil
-		wantRef  string // 非空则同时断言 Reference(按名选取时用)
+		wantRef  string // 非空则同时断言 Reference
 	}{
-		{"empty", nil, "", "", "", ""},
-		{"image only / no prefer", []run.Artifact{img}, "", "", run.ArtifactImage, ""},
-		{"file only / no prefer", []run.Artifact{dist}, "", "", run.ArtifactDist, ""},
-		{"both / no prefer → file first", []run.Artifact{img, dist}, "", "", run.ArtifactDist, ""},
-		{"both / prefer image", []run.Artifact{img, dist}, "image", "", run.ArtifactImage, ""},
-		{"both / prefer image (order swapped)", []run.Artifact{dist, img}, "image", "", run.ArtifactImage, ""},
-		{"prefer image but none → fall back file", []run.Artifact{dist}, "image", "", run.ArtifactDist, ""},
-		{"prefer jar exact", []run.Artifact{dist, jar}, "jar", "", run.ArtifactJar, ""},
-		{"prefer dist but only jar → any release", []run.Artifact{jar}, "dist", "", run.ArtifactJar, ""},
-		{"unknown type skipped", []run.Artifact{{Type: "weird"}}, "", "", "", ""},
+		{"no artifacts", nil, "web", "", ""},
+		{"name blank → nil(未选由调用方报错)", both, "", "", ""},
+		{"name blank spaces → nil", both, "  ", "", ""},
+		{"single artifact by name", []run.Artifact{dist}, "web", run.ArtifactDist, ""},
+		{"image by name", []run.Artifact{img}, "acme-shop", run.ArtifactImage, ""},
+		{"both → pick image by name", both, "acme-shop", run.ArtifactImage, ""},
+		{"both → pick jar by name", both, "api", run.ArtifactJar, ""},
+		{"both → pick dist by name", both, "web", run.ArtifactDist, ""},
 		// 多件同类产物:按名指定必须选中**那一件**,而不是首个。
-		{"multi distinct / name picks the named one (not first)", multi, "", "ym_client_front", run.ArtifactDist, "ym_client_front/"},
-		{"multi distinct / name picks last", multi, "", "fxy_client_front", run.ArtifactDist, "fxy_client_front/"},
-		{"multi distinct / name wins over type prefer", multi, "image", "fxy_admin_front", run.ArtifactDist, "fxy_admin_front/"},
-		{"multi distinct / no name → first (既有行为)", multi, "dist", "", run.ArtifactDist, "fxy_admin_front/"},
+		{"multi distinct / name picks the named one (not first)", multi, "ym_client_front", run.ArtifactDist, "ym_client_front/"},
+		{"multi distinct / name picks last", multi, "fxy_client_front", run.ArtifactDist, "fxy_client_front/"},
 		// 按名指定但不存在 / 不可部署 → nil(诚实失败,绝不换一件部署)。
-		{"name missing", multi, "", "nope", "", ""},
-		{"name given but run has no artifacts", nil, "", "fxy_admin_front", "", ""},
-		{"name matches a non-deployable artifact", []run.Artifact{{Type: "weird", Name: "x"}}, "", "x", "", ""},
-		{"name blank → 类型偏好照常生效", multi, "jar", "  ", run.ArtifactDist, "fxy_admin_front/"},
+		{"name missing", multi, "nope", "", ""},
+		{"name matches a non-deployable artifact", []run.Artifact{{Type: "weird", Name: "x"}}, "x", "", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := pickStageArtifact(tc.arts, tc.prefer, tc.wantName)
+			got := pickStageArtifact(tc.arts, tc.wantName)
 			if tc.want == "" {
 				if got != nil {
 					t.Fatalf("want nil, got %+v", got)
@@ -424,6 +422,28 @@ func TestPickStageArtifact(t *testing.T) {
 				t.Fatalf("want reference %s, got %+v", tc.wantRef, got)
 			}
 		})
+	}
+}
+
+// TestDeployForStageWithoutArtifactNameFails 未选产物 → ErrArtifactNotSelected:错误信息列出本 run
+// 可选产物名(便于用户改配置),且**不向目标机发任何命令**(绝不替用户猜一件发上线)。
+func TestDeployForStageWithoutArtifactNameFails(t *testing.T) {
+	db := testDB(t)
+	rsvc := run.New(db)
+	tgt := &stubTarget{}
+	srv := seedServer(t, tgt, "web-1")
+	runID, _ := seedSuccessRunWithArtifact(t, db, rsvc, run.ArtifactDist, "dist/shop.tar.gz")
+
+	svc := New(tgt, rsvc)
+	_, err := svc.DeployForStage(context.Background(), runID, []string{srv.ID}, map[string]string{}, "")
+	if !errors.Is(err, ErrArtifactNotSelected) {
+		t.Fatalf("want ErrArtifactNotSelected, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "shop") {
+		t.Fatalf("错误信息应列出可选产物名, got %v", err)
+	}
+	if len(tgt.calls) != 0 {
+		t.Fatalf("不应向目标机发任何命令: %v", tgt.calls)
 	}
 }
 

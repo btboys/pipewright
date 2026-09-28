@@ -36,6 +36,16 @@ export interface SelectOption {
   label: string
 }
 
+/**
+ * 字段可见性的上下文:由渲染方(JobDrawer)据「部署产物」候选推导后传入。
+ * 部署节点不再手选产物类型,镜像专属字段(containerName/ports/runArgs)与
+ * 文件专属字段(deployPath/restartCommand)按**所选产物的类型**切换。
+ */
+export interface FieldContext {
+  /** 所选产物的类型;'' = 未选 / 不认识(按文件产物展示)。 */
+  artifactKind: 'file' | 'image' | ''
+}
+
 export interface JobField {
   /** Key written into job.config */
   key: string
@@ -51,8 +61,8 @@ export interface JobField {
   credentialType?: CredentialType
   /** Render with monospace font (paths, commands, image refs) */
   monospace?: boolean
-  /** Conditional visibility based on the current config values */
-  when?: (config: Record<string, string>) => boolean
+  /** Conditional visibility based on the current config values (+ 产物类型上下文,见 FieldContext) */
+  when?: (config: Record<string, string>, ctx?: FieldContext) => boolean
 }
 
 /** Accent palette keys — map to --color-{accent} / --color-{accent}-soft tokens. */
@@ -108,15 +118,9 @@ const PROBE_MODE_OPTIONS: SelectOption[] = [
   { value: 'command', get label() { return t('pipelineJob.probeModeCommand') } },
 ]
 
-// 部署节点的产物类型偏好(本 run 同时产出镜像与文件产物时,挑哪件部署)。
-// 留空 = 自动:优先文件产物(dist/jar/archive),没有文件产物才用镜像。
-const DEPLOY_ARTIFACT_OPTIONS: SelectOption[] = [
-  { value: '', get label() { return t('pipelineJob.deployArtifactAuto') } },
-  { value: 'image', get label() { return t('pipelineJob.artifactImage') } },
-  { value: 'dist', get label() { return t('pipelineJob.artifactDist') } },
-  { value: 'jar', get label() { return t('pipelineJob.artifactJar') } },
-  { value: 'archive', get label() { return t('pipelineJob.deployArtifactArchive') } },
-]
+// 部署节点的产物类型条件:类型由所选产物推导(候选见 artifactCandidates.ts),这里只读上下文。
+const artifactIsImage = (ctx?: FieldContext) => ctx?.artifactKind === 'image'
+const artifactIsFile = (ctx?: FieldContext) => !artifactIsImage(ctx)
 
 // `when` helpers
 const modelIs = (v: string) => (c: Record<string, string>) =>
@@ -214,6 +218,10 @@ const SCRIPT_FIELDS: JobField[] = [
 ]
 
 // SSH 部署节点的字段(deploy_ssh 与 deploy_frontend 模板共用)。
+//
+// 这里**不再有「部署产物类型」下拉**:部署哪件产物由「部署产物」选择器直接指定(候选 = 本流水线
+// 会产出的文件产物与 build_image 的项目镜像,见 artifactCandidates.ts),产物类型随之自动确定 ——
+// 镜像产物露容器字段,文件产物露发布路径 / 重启命令。后端 deploy.DeployForStage 也只按名挑选。
 const DEPLOY_SSH_FIELDS: JobField[] = [
   {
     key: 'serverId',
@@ -222,21 +230,12 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     get hint() { return t('pipelineJob.fieldServerIdHint') },
   },
   {
-    key: 'artifactType',
-    get label() { return t('pipelineJob.fieldArtifactTypeLabel') },
-    kind: 'select',
-    options: DEPLOY_ARTIFACT_OPTIONS,
-    get hint() { return t('pipelineJob.fieldArtifactTypeHint') },
-  },
-  {
-    // 一次构建产出多件同类产物(如多个前端 dist)时,用它指定本节点部署哪一件。
-    // 选项来自本流水线各节点 artifactPath 里显式声明的名称(`名称=路径`)。
+    // 必选:选定哪件产物就部署哪件(同名精确匹配)。一次构建产出多件产物时(多个前端 dist、
+    // 文件与镜像并存)它也是唯一的挑选入口;未选时部署直接失败,平台绝不替用户猜一件。
     key: 'artifactName',
     get label() { return t('pipelineJob.fieldArtifactNameLabel') },
     kind: 'artifact',
     get hint() { return t('pipelineJob.fieldArtifactNameHint') },
-    // 镜像产物按类型挑即可(镜像名 = 项目 slug,不存在多件可选)→ 只在文件/自动产物时露出。
-    when: (c) => c.artifactType !== 'image',
   },
   {
     key: 'deployPath',
@@ -245,7 +244,7 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     monospace: true,
     placeholder: '/opt/app',
     get hint() { return t('pipelineJob.fieldDeployPathHint') },
-    when: (c) => c.artifactType !== 'image',
+    when: (_c, ctx) => artifactIsFile(ctx),
   },
   {
     key: 'containerName',
@@ -254,7 +253,7 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     monospace: true,
     placeholder: 'app',
     get hint() { return t('pipelineJob.fieldContainerNameHint') },
-    when: (c) => c.artifactType === 'image',
+    when: (_c, ctx) => artifactIsImage(ctx),
   },
   {
     key: 'ports',
@@ -263,7 +262,7 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     monospace: true,
     placeholder: '8080:80, 9000:9000',
     get hint() { return t('pipelineJob.fieldPortsHint') },
-    when: (c) => c.artifactType === 'image',
+    when: (_c, ctx) => artifactIsImage(ctx),
   },
   {
     key: 'runArgs',
@@ -272,7 +271,7 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     monospace: true,
     placeholder: '-e KEY=value --restart always',
     get hint() { return t('pipelineJob.fieldRunArgsHint') },
-    when: (c) => c.artifactType === 'image',
+    when: (_c, ctx) => artifactIsImage(ctx),
   },
   {
     key: 'strategy',
@@ -287,7 +286,7 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
     monospace: true,
     placeholder: 'systemctl restart app\nnginx -s reload',
     get hint() { return t('pipelineJob.fieldRestartCommandHint') },
-    when: (c) => c.artifactType !== 'image',
+    when: (_c, ctx) => artifactIsFile(ctx),
   },
 ]
 

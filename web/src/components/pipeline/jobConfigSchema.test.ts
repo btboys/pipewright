@@ -105,6 +105,38 @@ describe('jobConfigSchema', () => {
     })
   })
 
+  describe('deploy_ssh artifact fields', () => {
+    const fields = JOB_TYPE_SPECS.deploy_ssh.fields
+
+    function visible(ctx?: { artifactKind: 'file' | 'image' | '' }): string[] {
+      return fields.filter((f) => !f.when || f.when({}, ctx)).map((f) => f.key)
+    }
+
+    it('no longer owns artifactType (产物类型偏好已废除,改由所选产物推导)', () => {
+      const keys = schemaKeys('deploy_ssh')
+      expect(keys.has('artifactType')).toBe(false)
+      expect(keys.has('artifactName')).toBe(true)
+    })
+
+    it('shows container fields when the selected artifact is an image', () => {
+      const keys = visible({ artifactKind: 'image' })
+      expect(keys).toContain('containerName')
+      expect(keys).toContain('ports')
+      expect(keys).toContain('runArgs')
+      expect(keys).not.toContain('deployPath')
+      expect(keys).not.toContain('restartCommand')
+    })
+
+    it('shows file-publish fields for a file artifact (and while nothing is chosen)', () => {
+      for (const ctx of [{ artifactKind: 'file' as const }, undefined]) {
+        const keys = visible(ctx)
+        expect(keys).toContain('deployPath')
+        expect(keys).toContain('restartCommand')
+        expect(keys).not.toContain('containerName')
+      }
+    })
+  })
+
   describe('schemaKeys / splitConfig', () => {
     it('owns its declared keys', () => {
       const keys = schemaKeys('push_image')

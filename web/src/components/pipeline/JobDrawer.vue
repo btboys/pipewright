@@ -11,8 +11,10 @@ import {
   splitConfig,
   jobTypeLabel,
   isScriptClassType,
+  type FieldContext,
   type JobField,
 } from './jobConfigSchema'
+import type { ArtifactCandidate } from './artifactCandidates'
 import { configUsesTemplate } from './stepCompile'
 import {
   isStudioNode,
@@ -32,8 +34,8 @@ const props = defineProps<{
   credentials?: Credential[]
   servers?: Server[]
   channels?: NotificationChannel[]
-  /** 本流水线各节点声明过的产物名(`名称=路径`),供部署节点的产物名候选下拉。 */
-  artifactNames?: string[]
+  /** 本流水线会产出的产物候选(名称+类型),供部署节点的「部署产物」选择器。 */
+  artifacts?: ArtifactCandidate[]
 }>()
 
 const emit = defineEmits<{
@@ -133,11 +135,38 @@ function pickViewMode(config: Record<string, string>): void {
   }
 }
 
+/**
+ * 部署节点「部署产物」候选:本流水线会产出的产物(文件 / 镜像),由父级推导后传入。
+ * 当前值若不在候选中(手填 / 旧配置 / YAML 写的名字)也补进去,否则选择框会显示成占位符
+ * 而配置里其实有值 —— 用户一改就以为没设过。此时类型未知 → 按文件产物展示字段。
+ */
+const artifactOptions = computed<ArtifactCandidate[]>(() => {
+  const list = props.artifacts ?? []
+  const cur = (typedConfig.value.artifactName ?? '').trim()
+  if (cur && !list.some((c) => c.name === cur)) return [{ name: cur, kind: 'file', detail: '' }, ...list]
+  return list
+})
+
+/** 候选在下拉里的后缀说明:镜像标「镜像」,文件产物带声明的路径。 */
+function artifactOptionSuffix(c: ArtifactCandidate): string {
+  if (c.kind === 'image') return ` · ${t('pipelineJob.deployArtifactImageTag')}`
+  return c.detail ? ` · ${c.detail}` : ''
+}
+
+/** 所选产物的类型(镜像 / 文件);未选或名字不在候选里 → ''(按文件产物展示)。 */
+const selectedArtifactKind = computed<'file' | 'image' | ''>(() => {
+  const cur = (typedConfig.value.artifactName ?? '').trim()
+  if (!cur) return ''
+  const hit = (props.artifacts ?? []).find((c) => c.name === cur)
+  return hit ? hit.kind : ''
+})
+
 /** 步骤模式下,typed 表单只渲染「非步骤拥有」的字段(image/workDir/模板字段等)。 */
 const visibleFields = computed<JobField[]>(() => {
   if (!spec.value) return []
+  const ctx: FieldContext = { artifactKind: selectedArtifactKind.value }
   return spec.value.fields.filter((f) => {
-    if (f.when && !f.when(typedConfig.value)) return false
+    if (f.when && !f.when(typedConfig.value, ctx)) return false
     if (viewMode.value === 'steps' && STEP_OWNED_KEYS.has(f.key)) return false
     return true
   })
@@ -225,17 +254,6 @@ function selectValue(field: JobField): string {
   const v = typedConfig.value[field.key]
   if (v) return v
   return field.options?.[0]?.value ?? ''
-}
-
-/**
- * 产物名选择器的选项:父级汇总的声明名;当前值若不在其中(通配/自动命名/旧配置/YAML 手写)也补进去,
- * 否则选择框会显示成「自动」而配置里其实有值 —— 用户一改就以为没设过。
- */
-function artifactOptions(key: string): string[] {
-  const names = props.artifactNames ?? []
-  const cur = fieldValue(key).trim()
-  if (cur && !names.includes(cur)) return [cur, ...names]
-  return names
 }
 
 function updateLocal(key: string, value: string): void {
@@ -559,7 +577,8 @@ async function confirmSave(): Promise<void> {
           <span>{{ field.hint || t('pipelineJob.toggleEnable') }}</span>
         </label>
 
-        <!-- 产物名选择(选项 = 本流水线各节点声明过的产物名;留空 = 按类型自动挑) -->
+        <!-- 部署产物选择(候选 = 本流水线会产出的产物:文件产物 + build_image 的项目镜像;
+             选定哪件就部署哪件,产物类型随之切换镜像/文件专属字段) -->
         <select
           v-else-if="field.kind === 'artifact'"
           :value="selectValue(field)"
@@ -567,8 +586,10 @@ async function confirmSave(): Promise<void> {
           :aria-label="field.label"
           @change="setField(field.key, ($event.target as HTMLSelectElement).value)"
         >
-          <option value="">{{ t('pipelineJob.deployArtifactAuto') }}</option>
-          <option v-for="n in artifactOptions(field.key)" :key="n" :value="n">{{ n }}</option>
+          <option value="">{{ t('pipelineJob.deployArtifactPlaceholder') }}</option>
+          <option v-for="c in artifactOptions" :key="c.name" :value="c.name">
+            {{ c.name }}{{ artifactOptionSuffix(c) }}
+          </option>
         </select>
 
         <!-- number / text -->

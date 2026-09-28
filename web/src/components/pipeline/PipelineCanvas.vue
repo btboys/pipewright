@@ -12,7 +12,7 @@ import JobTypePicker from './JobTypePicker.vue'
 import type { CustomNode } from '../../api/customNodes'
 import { jobTypeLabel, getJobTypeSpec } from './jobConfigSchema'
 import { hasAnyNeeds } from './stageDeps'
-import { splitArtifactLine } from './stepCompile'
+import { collectArtifactCandidates, type ArtifactCandidate } from './artifactCandidates'
 import './pipeline.css'
 
 // ─── Props / emits ────────────────────────────────────────────────────────────
@@ -23,6 +23,8 @@ const props = defineProps<{
   credentials?: Credential[]
   servers?: Server[]
   channels?: NotificationChannel[]
+  /** 项目名(推导镜像产物名 / 自动产物名 slug;缺省 = 只列显式命名的产物)。 */
+  projectName?: string
 }>()
 
 const emit = defineEmits<{
@@ -55,21 +57,12 @@ const selectedStage = computed<PipelineStage | null>(() => {
   return props.stages.find((s) => s.jobs.some((j) => j.id === selectedJobId.value)) ?? null
 })
 
-// 产物名候选:全流水线各节点 artifactPath 里显式声明的名称(`名称=路径`)—— 一次构建可能产出多件
-// 同类产物(多个前端 dist 等),部署节点靠这个名字指定部署哪一件。列全部而非只列上游:省掉一遍
-// 跨阶段祖先图计算,候选多几个不影响;手填(通配/自动命名)同样允许。
-const artifactNames = computed<string[]>(() => {
-  const names = new Set<string>()
-  for (const stage of props.stages) {
-    for (const job of stage.jobs) {
-      for (const line of (job.config?.artifactPath ?? '').replace(/\r/g, '').split('\n')) {
-        const { name } = splitArtifactLine(line)
-        if (name) names.add(name)
-      }
-    }
-  }
-  return [...names].sort()
-})
+// 部署节点的「部署产物」候选:全流水线会产出的产物 —— 各节点 artifactPath 声明的文件产物
+// (`名称=路径`,未命名的按后端规则推导为 <项目slug>-<路径基名>)+ build_image 节点的项目镜像。
+// 列全部而非只列上游:省掉一遍跨阶段祖先图计算,候选多几个不影响;手填同样允许(高级参数)。
+const artifactCandidates = computed<ArtifactCandidate[]>(() =>
+  collectArtifactCandidates(props.stages, props.projectName ?? ''),
+)
 
 function selectJob(jobId: string): void {
   selectedJobId.value = selectedJobId.value === jobId ? null : jobId
@@ -425,7 +418,7 @@ function handleDrawerUpdate(patch: Partial<PipelineJob>): void {
       :credentials="props.credentials"
       :servers="props.servers"
       :channels="props.channels"
-      :artifact-names="artifactNames"
+      :artifacts="artifactCandidates"
       @close="closeDrawer"
       @update="handleDrawerUpdate"
       @change-type="requestChangeType"

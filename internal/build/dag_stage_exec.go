@@ -599,17 +599,22 @@ func (b *Builder) runDeployJob(ctx context.Context, rep dagrun.StageReporter, jb
 	if rc := renderTemplate(cfgString(jb.Config, "restartCommand"), params); rc != "" {
 		cfg["restartCommand"] = rc
 	}
-	// 镜像产物部署参数(#51)透传:deploy.DeployForStage 经这些键挑镜像产物并组装
-	// `docker run`(artifactType=image 选镜像;containerName/ports/runArgs 驱动容器名与端口/运行参数)。
-	// 各值原样搬运(deploy 层 array 化、绝不拼 shell,守 AC-SEC-02);空值不入 cfg 保持默认。
-	for _, k := range []string{"artifactType", "containerName", "ports", "runArgs"} {
+	// artifactType 只作「命令型部署」的遗留模式标记(command:不取产物、直接跑 restartCommand);
+	// 它已**不再是产物类型偏好**——部署哪件产物一律由 artifactName 按名指定(见下)。
+	if v := cfgString(jb.Config, "artifactType"); v == "command" {
+		cfg["artifactType"] = v
+	}
+	// 镜像产物部署参数(#51)透传:containerName/ports/runArgs 驱动 `docker run` 的容器名与端口/
+	// 运行参数。各值原样搬运(deploy 层 array 化、绝不拼 shell,守 AC-SEC-02);空值不入 cfg 保持默认。
+	for _, k := range []string{"containerName", "ports", "runArgs"} {
 		if v := cfgString(jb.Config, k); v != "" {
 			cfg[k] = v
 		}
 	}
-	// 指定产物(cfg["artifactName"]):一个 run 可能产出多件同类产物(如多个前端 dist),节点用它
-	// 精确指定本机部署哪一件 → deploy.DeployForStage 按名挑;支持 {{param}}(与 deployPath 一致)。
-	// 名字不存在时部署直接失败(不退回「随便挑一件」),避免把错的产物发上线。
+	// 部署哪件产物:必须选(cfg["artifactName"],部署节点的「部署产物」下拉即写此键);一个 run 可能
+	// 产出多件产物(多个前端 dist / 文件与镜像并存),节点用它精确指定本机部署哪一件 →
+	// deploy.DeployForStage 按名挑;支持 {{param}}(与 deployPath 一致)。未选 / 名字不存在时部署
+	// 直接失败(不退回「随便挑一件」),避免把错的产物发上线。
 	if an := renderTemplate(cfgString(jb.Config, "artifactName"), params); an != "" {
 		cfg["artifactName"] = an
 	}

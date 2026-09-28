@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: 'Despliegue azul-verde',
   probeModeHttp: 'Sonda HTTP',
   probeModeCommand: 'Sonda por comando',
-  deployArtifactAuto: 'Automático (preferir artefacto de archivo, si no usar imagen)',
-  deployArtifactArchive: 'Paquete de archivo (archive)',
+  deployArtifactPlaceholder: 'Selecciona el artefacto a desplegar',
+  deployArtifactImageTag: 'imagen',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: 'Tiempo de espera (s)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: 'Servidor de destino',
   fieldServerIdHint: 'Selecciona un servidor registrado (las credenciales se vinculan por referencia)',
-  fieldArtifactTypeLabel: 'Tipo de artefacto a desplegar',
-  fieldArtifactTypeHint:
-    'Cuál elegir cuando esta ejecución emite tanto una imagen como artefactos de archivo; una imagen va mediante docker pull en el destino → iniciar nuevo contenedor → comprobación de salud → revertir a la imagen anterior si falla',
-  fieldArtifactNameLabel: 'Qué artefacto desplegar (opcional)',
+  fieldArtifactNameLabel: 'Artefacto a desplegar',
   fieldArtifactNameHint:
-    'Cuando esta ejecución genera varios artefactos del mismo tipo (p. ej. varios dist de frontend), elige el que despliega este nodo — las opciones son los nombres declarados en las rutas de artefactos de cada nodo de build (p. ej. fxy_admin_front=dist); vacío = elegir automáticamente por tipo. Un nombre que esta ejecución no produjo falla este nodo y lista los nombres disponibles, en lugar de desplegar otro artefacto en silencio',
+    'Obligatorio: qué artefacto despliega este nodo. Las opciones son los nombres declarados en las rutas de artefactos de cada nodo de build (p. ej. web=frontend/dist) más la imagen del proyecto que produce el nodo «Build» (nombre de imagen = slug del proyecto); al elegir uno, los campos de imagen/archivo cambian automáticamente. No elegir ninguno — o elegir un nombre que esta ejecución no produjo — falla este nodo y lista los nombres disponibles, en lugar de desplegar otro artefacto en silencio',
   fieldDeployPathLabel: 'Ruta de despliegue',
   fieldDeployPathHint:
     'Artefactos de archivo: se publican en <ruta de despliegue>/releases/<runId>/, el enlace simbólico current cambia de forma atómica a esta versión (sin tiempo de inactividad, las versiones antiguas se conservan para revertir)',

@@ -30,8 +30,11 @@ var (
 	ErrRunNotFound = errors.New("deploy: run not found")
 	// ErrRunNotSuccessful 表示运行非成功态,不可部署。
 	ErrRunNotSuccessful = errors.New("deploy: run is not in a successful state")
-	// ErrArtifactNotFound 表示该 run 下无指定产物。
+	// ErrArtifactNotFound 表示该 run 下无指定产物(按名指定但不存在)。
 	ErrArtifactNotFound = errors.New("deploy: artifact not found for run")
+	// ErrArtifactNotSelected 表示部署节点没有选要部署的产物(deprecated 的类型偏好已废除:
+	// 必须按名指定,平台绝不替用户猜一件)。
+	ErrArtifactNotSelected = errors.New("deploy: no artifact selected for deploy node")
 	// ErrServerNotFound 表示指定的目标服务器不存在。
 	ErrServerNotFound = errors.New("deploy: target server not found")
 	// ErrNoServers 表示未指定任何目标服务器。
@@ -126,12 +129,12 @@ type Service interface {
 	// **不触碰已部署批次** → 据全量重算 run 终态 → 返回全量最新 targets。无 pending → ErrNoPendingTargets。
 	AbortDeploy(ctx context.Context, in AbortInput) ([]TargetResult, error)
 
-	// DeployForStage 是「流水线 deploy_ssh 节点」用的中途部署:按节点配置挑本 run 的一件可发布
-	// 产物(多件同类产物用 cfg["artifactName"] 按名精确指定,否则按 cfg["artifactType"] 选类型;
-	// 命中同类型的**首个**产物)→ 按策略部署到目标机 → 持久化每机结果(填 run-detail targets)。
-	// **不校验 run 状态**(流水线执行中 run 仍 running)、**不置 run 终态**(终态由 dag 调度器控制)。
-	// 无可发布产物 / 按名指定的产物不存在 → ErrArtifactNotFound;服务器不存在 → ErrServerNotFound;
-	// 有目标失败 → 返回 error 令该阶段失败、阻断下游(复用 dagrun「阶段失败→下游不执行」)。
+	// DeployForStage 是「流水线 deploy_ssh 节点」用的中途部署:按 cfg["artifactName"] **按名**挑本 run
+	// 的一件可发布产物(部署节点上的「部署产物」下拉即写此键)→ 按策略部署到目标机 → 持久化每机结果
+	// (填 run-detail targets)。**不校验 run 状态**(流水线执行中 run 仍 running)、**不置 run 终态**
+	// (终态由 dag 调度器控制)。
+	// 未选产物 → ErrArtifactNotSelected;按名指定的产物不存在 → ErrArtifactNotFound;服务器不存在 →
+	// ErrServerNotFound;有目标失败 → 返回 error 令该阶段失败、阻断下游(复用 dagrun「阶段失败→下游不执行」)。
 	DeployForStage(ctx context.Context, runID string, serverIDs []string, cfg map[string]string, strategy string) ([]TargetResult, error)
 }
 
@@ -318,27 +321,29 @@ func (s *service) DeployForStage(ctx context.Context, runID string, serverIDs []
 	if len(serverIDs) == 0 {
 		return nil, ErrNoServers
 	}
-	// 「命令型」部署(artifactType=command):不取构建产物,直接在目标机执行 cfg["restartCommand"]。
-	// 供「配置类」流水线用(如 frp 隧道:就地 upsert frpc.ini + reload)。与产物发布完全隔离——
-	// **真实产物部署(artifactType != command)绝不进此分支**,既有部署/策略/健康检查路径零影响。
+	// 「命令型」部署(artifactType=command,**遗留模式标记**,不是产物类型偏好):不取构建产物,
+	// 直接在目标机执行 cfg["restartCommand"]。供「配置类」流水线用(如 frp 隧道:就地 upsert
+	// frpc.ini + reload)。与产物发布完全隔离——**真实产物部署绝不进此分支**。
 	if strings.TrimSpace(cfg["artifactType"]) == "command" {
 		return s.runCommandOnly(ctx, runID, serverIDs, cfg)
 	}
-	// 取该 run 已产出的可部署产物。dist/jar/archive 走文件发布;image 走容器 pull→停旧起新→
-	// 健康→回滚(复用 image_release.go)。一个 run 产出多件同类产物时,节点用 cfg["artifactName"]
-	// 精确指定部署哪一件;未指定才按 cfg["artifactType"] 选类型(空 → 默认优先文件发布,保持既有
-	// 行为;显式 image → 选镜像)。选定后由 deployWithStrategy 据产物类型自动路由。
+	// 取该 run 已产出的可部署产物,按 cfg["artifactName"] **按名**选一件(部署节点的「部署产物」
+	// 下拉即写此键,候选含文件产物与镜像产物)。dist/jar/archive 走文件发布;image 走容器
+	// pull→停旧起新→健康→回滚(复用 image_release.go)。
+	// 未选 → 诚实失败并列出可选产物名(平台绝不替用户猜一件:发错产物上线比失败更糟)。
 	arts, err := s.runs.ListArtifacts(ctx, runID)
 	if err != nil {
 		return nil, err
 	}
-	artifact := pickStageArtifact(arts, strings.TrimSpace(cfg["artifactType"]), cfg["artifactName"])
+	name := strings.TrimSpace(cfg["artifactName"])
+	if name == "" {
+		return nil, fmt.Errorf("%w: 请在部署节点选择要部署的产物(本 run 可部署产物:%s)",
+			ErrArtifactNotSelected, deployableArtifactNames(arts))
+	}
+	artifact := pickStageArtifact(arts, name)
 	if artifact == nil {
-		if name := strings.TrimSpace(cfg["artifactName"]); name != "" {
-			return nil, fmt.Errorf("%w: 未找到名为 %q 的产物(本 run 可部署产物:%s)",
-				ErrArtifactNotFound, name, deployableArtifactNames(arts))
-		}
-		return nil, ErrArtifactNotFound
+		return nil, fmt.Errorf("%w: 未找到名为 %q 的产物(本 run 可部署产物:%s)",
+			ErrArtifactNotFound, name, deployableArtifactNames(arts))
 	}
 
 	servers := make([]*target.Server, 0, len(serverIDs))
@@ -437,60 +442,23 @@ func deployableArtifactNames(arts []run.Artifact) string {
 	return strings.Join(names, ", ")
 }
 
-// pickStageArtifact 从该 run 的产物里挑「部署节点」要部署的一件,返回 nil = 无可部署产物。
+// pickStageArtifact 从该 run 的产物里挑「部署节点」按名指定要部署的一件,返回 nil = 没这件(或不可部署)。
 //
-// 选取规则(参数自由,不写死单一类型):
-//   - wantName 非空:只在「可部署产物」中按 Name 精确匹配 —— 一次构建产出多件同类产物时
-//     (如多个前端 dist),节点用它指定这一台机器要部署哪一件。同名产物不存在 → nil:
-//     **诚实失败**,绝不悄悄挑一件别的产物部署(否则部署到的是错的产物,比失败更糟)。
-//   - 否则按 prefer 类型偏好:prefer == "image" 优先首个 image,无 → 退回首个文件发布产物;
-//     prefer 为文件类(dist/jar/archive)优先该精确类型,无 → 退回任一文件发布产物;
-//     prefer 空:默认优先文件发布产物(保持既有行为),无文件发布则退回 image。
-//
-// 任何情况下都只在「可部署产物」(deployableStageArtifact)中挑选;选定的类型由
-// deployWithStrategy 自动路由到文件发布 or 镜像编排。
-func pickStageArtifact(arts []run.Artifact, prefer, wantName string) *run.Artifact {
-	if wantName = strings.TrimSpace(wantName); wantName != "" {
-		for i := range arts {
-			if arts[i].Name == wantName && deployableStageArtifact(arts[i]) {
-				return &arts[i]
-			}
-		}
+// 选取规则只有一个:在「可部署产物」(deployableStageArtifact)中按 Name **精确匹配** —— 一次构建
+// 产出多件产物时(多个前端 dist、或文件与镜像并存),节点明确指定这台机器要部署哪一件。
+// 名字不存在 / 该产物不可部署 → nil:**诚实失败**,绝不悄悄挑一件别的产物部署(发错产物上线比
+// 失败更糟)。选定的类型由 deployWithStrategy 自动路由到文件发布 or 镜像编排,调用方无需关心类型。
+func pickStageArtifact(arts []run.Artifact, wantName string) *run.Artifact {
+	wantName = strings.TrimSpace(wantName)
+	if wantName == "" {
 		return nil
 	}
-	prefer = strings.ToLower(prefer)
-	var firstImage, firstRelease, firstExact *run.Artifact
 	for i := range arts {
-		a := arts[i]
-		if !deployableStageArtifact(a) {
-			continue
-		}
-		if firstExact == nil && prefer != "" && a.Type == prefer {
-			firstExact = &arts[i]
-		}
-		if a.Type == run.ArtifactImage && firstImage == nil {
-			firstImage = &arts[i]
-		}
-		if releaseModeArtifact(a) && firstRelease == nil {
-			firstRelease = &arts[i]
+		if arts[i].Name == wantName && deployableStageArtifact(arts[i]) {
+			return &arts[i]
 		}
 	}
-	// 1) 显式偏好且精确命中 → 选它。
-	if firstExact != nil {
-		return firstExact
-	}
-	// 2) 显式偏好 image(未精确命中走这里)→ image 优先,退回文件发布。
-	if prefer == run.ArtifactImage {
-		if firstImage != nil {
-			return firstImage
-		}
-		return firstRelease
-	}
-	// 3) 默认 / 偏好文件类:文件发布优先(保持既有行为),退回 image。
-	if firstRelease != nil {
-		return firstRelease
-	}
-	return firstImage
+	return nil
 }
 
 // RetryFailed 仅重试该 run 当前 failed/rolled_back 的目标(Story 4.5;FR-13)。见 Service 接口注释。

@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: '藍綠部署',
   probeModeHttp: 'HTTP 探測',
   probeModeCommand: '命令探測',
-  deployArtifactAuto: '自動(優先檔案產物,無則用映像)',
-  deployArtifactArchive: '歸檔包 (archive)',
+  deployArtifactPlaceholder: '請選擇要部署的產物',
+  deployArtifactImageTag: '映像',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: '逾時(秒)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: '目標伺服器',
   fieldServerIdHint: '選擇已登記的伺服器(憑證按引用繫結)',
-  fieldArtifactTypeLabel: '部署產物類型',
-  fieldArtifactTypeHint:
-    '本 run 同時產出映像與檔案產物時挑哪件;映像走目標機 docker pull → 起新容器 → 健康檢查 → 失敗回復上一映像',
-  fieldArtifactNameLabel: '部署哪個產物(可選)',
+  fieldArtifactNameLabel: '部署產物',
   fieldArtifactNameHint:
-    '本 run 產出多件同類產物時(如多個前端 dist),從下拉選本節點要部署哪一件 —— 選項來自各構建節點「產物路徑」宣告的名稱(如 fxy_admin_front=dist);留空=依產物類型自動挑。選中的名稱本 run 沒產出 → 本節點失敗並列出可選名稱,絕不改發別的產物',
+    '必選:本節點要部署哪一件產物。候選來自各構建節點「產物路徑」宣告的名稱(如 web=frontend/dist),以及「建置」節點產出的專案映像(映像名 = 專案名);選定後映像 / 檔案專屬欄位自動切換。不選、或選中的名稱本 run 沒產出 → 本節點失敗並列出可選名稱,絕不改發別的產物',
   fieldDeployPathLabel: '部署路徑',
   fieldDeployPathHint:
     '檔案產物:發佈到 <部署路徑>/releases/<runId>/,current 軟連結原子切到本次發佈(零停機,舊發佈保留供回復)',

@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: 'Déploiement bleu-vert',
   probeModeHttp: 'Sonde HTTP',
   probeModeCommand: 'Sonde par commande',
-  deployArtifactAuto: 'Auto (préférer l’artefact fichier, sinon l’image)',
-  deployArtifactArchive: 'Paquet d’archive (archive)',
+  deployArtifactPlaceholder: 'Sélectionnez l’artefact à déployer',
+  deployArtifactImageTag: 'image',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: 'Délai d’expiration (s)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: 'Serveur cible',
   fieldServerIdHint: 'Sélectionnez un serveur enregistré (les identifiants sont liés par référence)',
-  fieldArtifactTypeLabel: 'Type d’artefact à déployer',
-  fieldArtifactTypeHint:
-    'Lequel choisir lorsque cette exécution produit à la fois une image et des artefacts fichiers ; une image passe par docker pull sur la cible → démarrage d’un nouveau conteneur → contrôle de santé → retour à l’image précédente en cas d’échec',
-  fieldArtifactNameLabel: 'Quel artefact déployer (facultatif)',
+  fieldArtifactNameLabel: 'Artefact à déployer',
   fieldArtifactNameHint:
-    'Lorsque cette exécution produit plusieurs artefacts du même type (p. ex. plusieurs dist frontend), choisissez celui que ce nœud déploie — les options sont les noms déclarés dans les chemins d’artefacts de chaque nœud de build (p. ex. fxy_admin_front=dist) ; vide = choisir automatiquement par type. Un nom absent de cette exécution fait échouer ce nœud et liste les noms disponibles, plutôt que de déployer un autre artefact en silence',
+    'Obligatoire : quel artefact ce nœud déploie. Les options sont les noms déclarés dans les chemins d’artefacts de chaque nœud de build (p. ex. web=frontend/dist) ainsi que l’image du projet produite par le nœud « Build » (nom d’image = slug du projet) ; en choisir une bascule automatiquement les champs image/fichier. Ne rien choisir — ou choisir un nom absent de cette exécution — fait échouer ce nœud et liste les noms disponibles, plutôt que de déployer un autre artefact en silence',
   fieldDeployPathLabel: 'Chemin de déploiement',
   fieldDeployPathHint:
     'Artefacts fichiers : publiés dans <chemin de déploiement>/releases/<runId>/, le lien symbolique current bascule de façon atomique vers cette version (sans interruption, les anciennes versions sont conservées pour le retour arrière)',

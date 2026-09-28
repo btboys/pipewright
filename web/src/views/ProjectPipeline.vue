@@ -662,6 +662,7 @@ async function togglePrStatus(next: boolean): Promise<void> {
             v-else-if="loadState === 'idle' && pipeline"
             :stages="editStages"
             :yaml="pipeline.yaml"
+            :project-name="projectName"
             :credentials="credentials"
             :servers="servers"
             :channels="channels"

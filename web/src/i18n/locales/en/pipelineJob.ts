@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: 'Blue-green deploy',
   probeModeHttp: 'HTTP probe',
   probeModeCommand: 'Command probe',
-  deployArtifactAuto: 'Auto (prefer file artifact, fall back to image)',
-  deployArtifactArchive: 'Archive package (archive)',
+  deployArtifactPlaceholder: 'Select an artifact to deploy',
+  deployArtifactImageTag: 'image',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: 'Timeout (s)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: 'Target server',
   fieldServerIdHint: 'Pick a registered server (credentials bound by reference)',
-  fieldArtifactTypeLabel: 'Deploy artifact type',
-  fieldArtifactTypeHint:
-    'Which one to pick when this run emits both an image and file artifacts; an image goes via docker pull on the target → start new container → health check → roll back to the previous image on failure',
-  fieldArtifactNameLabel: 'Deploy which artifact (optional)',
+  fieldArtifactNameLabel: 'Artifact to deploy',
   fieldArtifactNameHint:
-    'When this run emits several artifacts of the same type (e.g. multiple frontend dists), pick the one this node deploys — the options are the names declared in each build node’s artifact paths (e.g. fxy_admin_front=dist); empty = pick automatically by artifact type. A name this run did not produce fails this node and lists the available names, instead of silently deploying another artifact',
+    'Required: which artifact this node deploys. Options come from the names declared in each build node’s artifact paths (e.g. web=frontend/dist) plus the project image produced by the “Build” node (image name = project slug); picking one switches the image/file-specific fields accordingly. Not picking one — or picking a name this run did not produce — fails this node and lists the available names, instead of silently deploying another artifact',
   fieldDeployPathLabel: 'Deploy path',
   fieldDeployPathHint:
     'File artifacts: published to <deploy path>/releases/<runId>/, the current symlink atomically switches to this release (zero downtime, old releases kept for rollback)',

@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: 'ブルーグリーンデプロイ',
   probeModeHttp: 'HTTP プローブ',
   probeModeCommand: 'コマンドプローブ',
-  deployArtifactAuto: '自動(ファイル成果物を優先、無ければイメージ)',
-  deployArtifactArchive: 'アーカイブパッケージ (archive)',
+  deployArtifactPlaceholder: 'デプロイする成果物を選択',
+  deployArtifactImageTag: 'イメージ',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: 'タイムアウト(秒)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: 'ターゲットサーバー',
   fieldServerIdHint: '登録済みのサーバーを選択(認証情報は参照でバインド)',
-  fieldArtifactTypeLabel: 'デプロイ成果物タイプ',
-  fieldArtifactTypeHint:
-    'この run がイメージとファイル成果物を同時に出力する場合にどれを選ぶか。イメージはターゲットで docker pull → 新コンテナ起動 → ヘルスチェック → 失敗時に前のイメージへロールバック',
-  fieldArtifactNameLabel: 'デプロイする成果物の指定(任意)',
+  fieldArtifactNameLabel: 'デプロイする成果物',
   fieldArtifactNameHint:
-    'この run が同種の成果物を複数出力する場合(複数のフロントエンド dist など)、このノードがデプロイする1件を選択します — 選択肢は各ビルドノードの「成果物パス」で宣言した名前(例 fxy_admin_front=dist)。空 = 成果物タイプで自動選択。選んだ名前がこの run に無い場合はこのノードが失敗し、選択可能な名前を列挙します(別の成果物を黙ってデプロイすることはありません)',
+    '必須:このノードがデプロイする成果物。選択肢は各ビルドノードの「成果物パス」で宣言した名前(例 web=frontend/dist)と、「ビルド」ノードが生成するプロジェクトイメージ(イメージ名 = プロジェクト名)です。選ぶとイメージ / ファイル専用のフィールドが自動で切り替わります。未選択、または選んだ名前がこの run に無い場合はこのノードが失敗し、選択可能な名前を列挙します(別の成果物を黙ってデプロイすることはありません)',
   fieldDeployPathLabel: 'デプロイパス',
   fieldDeployPathHint:
     'ファイル成果物:<デプロイパス>/releases/<runId>/ に公開、current シンボリックリンクを今回のリリースへアトミックに切替(ゼロダウンタイム、旧リリースはロールバック用に保持)',

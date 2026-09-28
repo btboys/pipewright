@@ -530,16 +530,18 @@ func (d *stubStageDeployer) DeployForStage(_ context.Context, _ string, serverID
 	return []deploy.TargetResult{{ServerName: "srv", Status: run.TargetSuccess, Message: "ok"}}, nil
 }
 
-// TestRunDeployJobPassesImageParams 证 #55:部署节点把镜像产物参数
-// (artifactType/containerName/ports/runArgs)透传给 deploy.DeployForStage,
-// 使流水线部署节点能部署 #51 的镜像产物(而非只透传 releaseBase/restartCommand)。
+// TestRunDeployJobPassesImageParams 证 #55:部署节点把产物名 + 镜像容器参数
+// (artifactName/containerName/ports/runArgs)透传给 deploy.DeployForStage,
+// 使流水线部署节点能按名部署镜像产物(而非只透传 releaseBase/restartCommand)。
+// **产物类型偏好 artifactType 已废除**:它不再是挑选依据,故不透传(仅 command 模式标记例外)。
 func TestRunDeployJobPassesImageParams(t *testing.T) {
 	dep := &stubStageDeployer{}
 	b := &Builder{deployer: dep}
 	rep := &fakeReporter{}
 	jb := pipeline.Job{ID: "d", Name: "部署", Type: "deploy_ssh", Config: map[string]any{
 		"serverId":      "srv-1",
-		"artifactType":  "image",
+		"artifactName":  "acme-shop",
+		"artifactType":  "image", // 废除后不应透传
 		"containerName": "myapp",
 		"ports":         "8080:80,9000:9000",
 		"runArgs":       "-e KEY=v --restart always",
@@ -550,7 +552,7 @@ func TestRunDeployJobPassesImageParams(t *testing.T) {
 		t.Fatalf("runDeployJob err: %v", err)
 	}
 	for k, want := range map[string]string{
-		"artifactType":  "image",
+		"artifactName":  "acme-shop",
 		"containerName": "myapp",
 		"ports":         "8080:80,9000:9000",
 		"runArgs":       "-e KEY=v --restart always",
@@ -560,12 +562,37 @@ func TestRunDeployJobPassesImageParams(t *testing.T) {
 			t.Errorf("cfg[%q] = %q, want %q(完整 cfg=%+v)", k, got, want, dep.gotCfg)
 		}
 	}
+	if got, ok := dep.gotCfg["artifactType"]; ok {
+		t.Errorf("产物类型偏好已废除,不应透传 artifactType:%q", got)
+	}
 	if dep.gotStrategy != "blue_green" {
 		t.Errorf("strategy = %q, want blue_green", dep.gotStrategy)
 	}
 	// 空键不应混入(保持默认行为)。
 	if _, ok := dep.gotCfg["restartCommand"]; ok {
 		t.Errorf("空 restartCommand 不应入 cfg:%+v", dep.gotCfg)
+	}
+}
+
+// TestRunDeployJobPassesCommandMode 证「命令型部署」的遗留模式标记 artifactType=command 仍透传
+// (配置类流水线:不取产物、直接跑 restartCommand)。
+func TestRunDeployJobPassesCommandMode(t *testing.T) {
+	dep := &stubStageDeployer{}
+	b := &Builder{deployer: dep}
+	rep := &fakeReporter{}
+	jb := pipeline.Job{ID: "d", Name: "配置隧道", Type: "deploy_ssh", Config: map[string]any{
+		"serverId":       "srv-1",
+		"artifactType":   "command",
+		"restartCommand": "systemctl restart frpc",
+	}}
+	if err := b.runDeployJob(context.Background(), rep, jb, "run-1", nil); err != nil {
+		t.Fatalf("runDeployJob err: %v", err)
+	}
+	if got := dep.gotCfg["artifactType"]; got != "command" {
+		t.Errorf("cfg[artifactType] = %q, want command(完整 cfg=%+v)", got, dep.gotCfg)
+	}
+	if got := dep.gotCfg["restartCommand"]; got != "systemctl restart frpc" {
+		t.Errorf("cfg[restartCommand] = %q(完整 cfg=%+v)", got, dep.gotCfg)
 	}
 }
 

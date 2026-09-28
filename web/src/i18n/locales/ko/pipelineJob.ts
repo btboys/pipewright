@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: '블루-그린 배포',
   probeModeHttp: 'HTTP 프로브',
   probeModeCommand: '명령 프로브',
-  deployArtifactAuto: '자동(파일 아티팩트 우선, 없으면 이미지)',
-  deployArtifactArchive: '아카이브 패키지 (archive)',
+  deployArtifactPlaceholder: '배포할 아티팩트 선택',
+  deployArtifactImageTag: '이미지',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: '타임아웃(초)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: '대상 서버',
   fieldServerIdHint: '등록된 서버 선택(자격 증명은 참조로 바인딩)',
-  fieldArtifactTypeLabel: '배포 아티팩트 유형',
-  fieldArtifactTypeHint:
-    '이 run 이 이미지와 파일 아티팩트를 동시에 출력할 때 어느 것을 선택할지. 이미지는 대상 머신에서 docker pull → 새 컨테이너 시작 → 헬스 체크 → 실패 시 이전 이미지로 롤백',
-  fieldArtifactNameLabel: '배포할 산출물 지정(선택)',
+  fieldArtifactNameLabel: '배포 아티팩트',
   fieldArtifactNameHint:
-    '이 run 이 같은 유형의 산출물을 여러 개 만들 때(예: 여러 프런트엔드 dist), 이 노드가 배포할 하나를 선택합니다 — 선택지는 각 빌드 노드의 산출물 경로에 선언한 이름(예: fxy_admin_front=dist)입니다. 비우면 산출물 유형으로 자동 선택. 고른 이름이 이 run 에 없으면 이 노드는 실패하고 선택 가능한 이름을 나열합니다(다른 산출물을 조용히 배포하지 않습니다)',
+    '필수: 이 노드가 배포할 아티팩트. 선택지는 각 빌드 노드의 「아티팩트 경로」에 선언한 이름(예: web=frontend/dist)과 「빌드」 노드가 만든 프로젝트 이미지(이미지 이름 = 프로젝트 이름)입니다. 선택하면 이미지 / 파일 전용 필드가 자동으로 전환됩니다. 선택하지 않거나 고른 이름이 이 run 에 없으면 이 노드는 실패하고 선택 가능한 이름을 나열합니다(다른 아티팩트를 조용히 배포하지 않습니다)',
   fieldDeployPathLabel: '배포 경로',
   fieldDeployPathHint:
     '파일 아티팩트: <배포 경로>/releases/<runId>/ 에 게시, current 심볼릭 링크가 이번 릴리스로 원자적 전환(무중단, 이전 릴리스는 롤백용으로 보존)',

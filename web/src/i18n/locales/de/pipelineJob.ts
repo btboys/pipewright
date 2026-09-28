@@ -11,8 +11,8 @@ export default {
   deployStrategyBlueGreen: 'Blau-Grün-Bereitstellung',
   probeModeHttp: 'HTTP-Probe',
   probeModeCommand: 'Befehls-Probe',
-  deployArtifactAuto: 'Automatisch (Datei-Artefakt bevorzugen, sonst Image)',
-  deployArtifactArchive: 'Archivpaket (archive)',
+  deployArtifactPlaceholder: 'Zu deployendes Artefakt auswählen',
+  deployArtifactImageTag: 'Image',
 
   // ─── jobConfigSchema · exec option fields ──────────────────────────────
   fieldTimeoutLabel: 'Timeout (s)',
@@ -45,12 +45,9 @@ export default {
   // ─── jobConfigSchema · deploy ssh fields ───────────────────────────────
   fieldServerIdLabel: 'Zielserver',
   fieldServerIdHint: 'Einen registrierten Server auswählen (Anmeldedaten per Referenz gebunden)',
-  fieldArtifactTypeLabel: 'Bereitzustellender Artefakttyp',
-  fieldArtifactTypeHint:
-    'Welches gewählt wird, wenn dieser Lauf sowohl ein Image als auch Datei-Artefakte ausgibt; ein Image geht per docker pull auf dem Ziel → neuen Container starten → Health-Check → bei Fehler Rollback auf das vorherige Image',
-  fieldArtifactNameLabel: 'Welches Artefakt deployen (optional)',
+  fieldArtifactNameLabel: 'Zu deployendes Artefakt',
   fieldArtifactNameHint:
-    'Wenn dieser Lauf mehrere Artefakte desselben Typs erzeugt (z. B. mehrere Frontend-Dists), wähle aus, welches dieser Knoten deployt — die Optionen sind die in den Artefaktpfaden der Build-Knoten deklarierten Namen (z. B. fxy_admin_front=dist); leer = automatisch nach Artefakttyp wählen. Ein Name, den dieser Lauf nicht erzeugt hat, lässt diesen Knoten fehlschlagen und listet die verfügbaren Namen auf, statt still ein anderes Artefakt zu deployen',
+    'Pflichtfeld: welches Artefakt dieser Knoten deployt. Die Optionen sind die in den Artefaktpfaden der Build-Knoten deklarierten Namen (z. B. web=frontend/dist) sowie das vom „Build“-Knoten erzeugte Projekt-Image (Image-Name = Projekt-Slug); die Auswahl schaltet die Image-/Datei-spezifischen Felder automatisch um. Nichts auszuwählen — oder einen Namen zu wählen, den dieser Lauf nicht erzeugt hat — lässt diesen Knoten fehlschlagen und listet die verfügbaren Namen auf, statt still ein anderes Artefakt zu deployen',
   fieldDeployPathLabel: 'Bereitstellungspfad',
   fieldDeployPathHint:
     'Datei-Artefakte: veröffentlicht unter <Bereitstellungspfad>/releases/<runId>/, der current-Symlink wechselt atomar auf diese Version (ohne Ausfallzeit, alte Versionen bleiben für Rollback erhalten)',
