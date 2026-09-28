@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: 'Bereitstellungsstrategie',
   fieldRestartCommandLabel: 'Neustart-/Umschaltbefehl',
   fieldRestartCommandHint:
-    'Optional, mehrzeilig (set -e, Zeile für Zeile); nach der Bereitstellung im current-Verzeichnis des Ziels ausgeführt, für Neustart/Reload; bei Fehler automatisches Rollback',
+    'Optional, mehrzeilig (set -e, Zeile für Zeile); nach der Bereitstellung im current-Verzeichnis des Ziels ausgeführt, für Neustart/Reload; bei Fehler automatisches Rollback. Hinweis: Die Bereitstellung legt nur das Artefakt ab und startet keinen Prozess (auch kein JAR) – der Startbefehl gehört hierher (z. B. systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: 'Quellcode abrufen',

@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: 'Deploy strategy',
   fieldRestartCommandLabel: 'Restart / switch command',
   fieldRestartCommandHint:
-    'Optional, multi-line (set -e, line by line); run in the target’s current directory after deploy, for restart/reload; auto-rolls-back on failure',
+    'Optional, multi-line (set -e, line by line); run in the target’s current directory after deploy, for restart/reload; auto-rolls-back on failure. Note: deploy only places the artifact and never starts a process (jars included) — put the start command here (e.g. systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: 'Pull source',

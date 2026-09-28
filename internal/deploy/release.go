@@ -11,6 +11,10 @@ package deploy
 //	    <runId-2>/   ← 本次发布
 //	  current  →  releases/<runId-2>   （软链;ln -sfn 原子替换,切换瞬时,零停机）
 //
+// 部署期**只放置产物、不启动进程**:平台不跑 `java -jar`(胖 jar 加 `--version` 也会真启动应用,
+// 占端口并阻塞到超时);进程启动/重载一律交给产品配置的 restartCommand(如 systemctl restart app),
+// 由健康门控判定成败。
+//
 // 流程(deployReleaseOne):
 //  1. 探测上一发布:readlink <base>/current(无 → 首次部署,无可回滚)。
 //  2. mkdir -p <base>/releases/<runId> → 把产物负载写入该发布目录。
@@ -145,14 +149,11 @@ func (s *service) stageReleaseOne(ctx context.Context, srv *target.Server, a run
 	}
 
 	// 旧路径(向后兼容:无制品库的历史产物)——把 reference 串当占位写入(非真字节)。
+	// **不跑 `java -jar` 探测**:胖 jar 收到 `--version` 会真启动应用并阻塞到超时。
 	payload := base64.StdEncoding.EncodeToString([]byte(a.Reference + "\n"))
 	placeCmds := [][]string{
 		{"mkdir", "-p", st.release},
 		{"sh", "-c", `printf '%s' "$1" | base64 -d > "$0"`, file, payload},
-	}
-	if a.Type == run.ArtifactJar {
-		// jar:放置后探测启动命令(目标无 java → 非零退出 → 该机 failed 人读)。
-		placeCmds = append(placeCmds, []string{"java", "-jar", file, "--version"})
 	}
 	if failMsg, ok := s.runStep(execCtx, srv.ID, placeCmds); !ok {
 		return st, failMsg, false
@@ -161,7 +162,7 @@ func (s *service) stageReleaseOne(ctx context.Context, srv *target.Server, a run
 }
 
 // stageStoredArtifact 把制品库里的**真字节**落到目标机发布目录(Story 8-16):
-//   - jar  (format=file)  : 上传到 <release>/<filename>,再探 java -jar 启动命令。
+//   - jar  (format=file)  : 上传到 <release>/<filename>。**只上传、不启动**(绝不 `java -jar`)。
 //   - dist (format=tar.gz): 上传 tar.gz → 远端解包到 <release> → 删临时包。
 //
 // jarFile 是旧占位路径算出的目标文件路径(<release>/<deployFileName>);jar 沿用它,
@@ -205,11 +206,6 @@ func (s *service) stageStoredArtifact(ctx context.Context, srv *target.Server, a
 		}
 		if err := s.targets.Upload(ctx, srv.ID, rc, dest); err != nil {
 			return "上传 jar 制品到目标机失败:" + humanExecError(err), false
-		}
-		if a.Type == run.ArtifactJar {
-			if failMsg, ok := s.runStep(ctx, srv.ID, [][]string{{"java", "-jar", dest, "--version"}}); !ok {
-				return failMsg, false
-			}
 		}
 		return "", true
 	}

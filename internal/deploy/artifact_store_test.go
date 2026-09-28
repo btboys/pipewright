@@ -72,6 +72,12 @@ func TestDeployStoredJarUploadsRealBytes(t *testing.T) {
 			t.Fatalf("制品库产物不应再用 base64 占位写入:%v", c)
 		}
 	}
+	// 制品库 jar 同样只上传:部署期绝不 `java -jar`(会真启动应用)。
+	for _, c := range tgt.calls {
+		if len(c) > 0 && c[0] == "java" {
+			t.Fatalf("jar 部署不应执行 java 命令:%v", c)
+		}
+	}
 }
 
 // 制品库支撑的 dist 部署:上传 tar.gz 并远端解包(命令含 tar -xzf)。

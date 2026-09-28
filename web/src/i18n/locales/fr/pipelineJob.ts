@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: 'Stratégie de déploiement',
   fieldRestartCommandLabel: 'Commande de redémarrage / bascule',
   fieldRestartCommandHint:
-    'Optionnel, multiligne (set -e, ligne par ligne) ; exécutée dans le répertoire current de la cible après le déploiement, pour redémarrer/recharger ; retour arrière automatique en cas d’échec',
+    'Optionnel, multiligne (set -e, ligne par ligne) ; exécutée dans le répertoire current de la cible après le déploiement, pour redémarrer/recharger ; retour arrière automatique en cas d’échec. Remarque : le déploiement ne fait que déposer l’artefact et ne démarre aucun processus (JAR compris) ; la commande de démarrage se met ici (ex. systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: 'Récupérer la source',

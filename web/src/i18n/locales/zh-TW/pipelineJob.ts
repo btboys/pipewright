@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: '部署策略',
   fieldRestartCommandLabel: '重啟 / 切換命令',
   fieldRestartCommandHint:
-    '可選,多行(set -e 逐行執行);部署後在目標機 current 目錄下執行,用於重啟/重載;失敗自動回復',
+    '可選,多行(set -e 逐行執行);部署後在目標機 current 目錄下執行,用於重啟/重載;失敗自動回復。注意:部署只放置產物,不會自動啟動行程(jar 也一樣),啟動命令要寫在這裡(如 systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: '拉取原始碼',

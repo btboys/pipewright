@@ -283,7 +283,7 @@ func TestReleaseRollbackCmdFailStillRecorded(t *testing.T) {
 	}
 }
 
-// TestReleaseJarMode:jar 也走 release 模式(放置 + java 探测 + current 切换)。
+// TestReleaseJarMode:jar 也走 release 模式(仅放置 + current 原子切换,部署期不启动进程)。
 func TestReleaseJarMode(t *testing.T) {
 	db := testDB(t)
 	rsvc := run.New(db)
@@ -303,10 +303,9 @@ func TestReleaseJarMode(t *testing.T) {
 	if res[0].Status != run.TargetSuccess {
 		t.Fatalf("want success, got %+v", res[0])
 	}
-	// java -jar 探测命令 array 化。
-	java := findCmd(tgt.calls, "java")
-	if java == nil || java[1] != "-jar" {
-		t.Fatalf("jar 启动探测命令异常: %v", java)
+	// jar 部署期绝不 `java -jar`:胖 jar 加 `--version` 会真启动应用并阻塞到超时。
+	if java := findCmd(tgt.calls, "java"); java != nil {
+		t.Fatalf("jar 部署不应执行 java 命令: %v", java)
 	}
 	if fs.current == "" {
 		t.Fatalf("jar 也应原子切换 current")

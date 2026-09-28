@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: 'Estrategia de despliegue',
   fieldRestartCommandLabel: 'Comando de reinicio / cambio',
   fieldRestartCommandHint:
-    'Opcional, multilínea (set -e, línea por línea); se ejecuta en el directorio current del destino tras el despliegue, para reiniciar/recargar; revierte automáticamente si falla',
+    'Opcional, multilínea (set -e, línea por línea); se ejecuta en el directorio current del destino tras el despliegue, para reiniciar/recargar; revierte automáticamente si falla. Nota: el despliegue solo coloca el artefacto y no inicia ningún proceso (tampoco JAR); el comando de arranque se escribe aquí (p. ej. systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: 'Obtener código fuente',

@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: '배포 전략',
   fieldRestartCommandLabel: '재시작 / 전환 명령',
   fieldRestartCommandHint:
-    '선택, 여러 줄(set -e, 한 줄씩 실행). 배포 후 대상 머신의 current 디렉터리에서 실행하여 재시작/리로드에 사용. 실패 시 자동 롤백',
+    '선택, 여러 줄(set -e, 한 줄씩 실행). 배포 후 대상 머신의 current 디렉터리에서 실행하여 재시작/리로드에 사용. 실패 시 자동 롤백. 참고: 배포는 아티팩트만 배치하고 프로세스를 시작하지 않습니다(JAR 포함). 시작 명령은 여기에 작성하세요(예: systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: '소스 가져오기',

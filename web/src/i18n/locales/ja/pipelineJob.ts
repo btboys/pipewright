@@ -63,7 +63,7 @@ export default {
   fieldStrategyLabel: 'デプロイ戦略',
   fieldRestartCommandLabel: '再起動 / 切替コマンド',
   fieldRestartCommandHint:
-    '任意、複数行(set -e で 1 行ずつ実行)。デプロイ後にターゲットの current ディレクトリで実行し、再起動/リロードに使用。失敗時は自動ロールバック',
+    '任意、複数行(set -e で 1 行ずつ実行)。デプロイ後にターゲットの current ディレクトリで実行し、再起動/リロードに使用。失敗時は自動ロールバック。注意: デプロイは成果物を配置するだけでプロセスを起動しません(JAR も同様)。起動コマンドはここに記述してください(例: systemctl restart app)',
 
   // ─── jobConfigSchema · git_source ──────────────────────────────────────
   typeGitSourceLabel: 'ソース取得',

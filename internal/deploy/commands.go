@@ -13,8 +13,9 @@ import (
 //
 //   - dist    : 传输 + 部署到目标机(本机可真验):mkdir 目标目录 → 经 SSH 把 reference
 //               写入目标(cat > / base64 -d,小文件够用)→ 软链 / 标记当前版本。
-//   - jar     : 放置 jar(mkdir → 写入)+ 构造 `java -jar` 启动命令(命令构造正确即可;
-//               目标无 java → 该机 failed 人读)。
+//   - jar     : 仅放置 jar(mkdir → 写入)。**部署期绝不 `java -jar`** —— 胖 jar 收到
+//               `--version` 等参数不会只打印版本,而是真启动应用(占端口、阻塞到超时),
+//               启动/重载交给用户配的 restartCommand(systemctl 等)+ 健康门控。
 //   - image   : 构造 `docker pull` + `docker run`(目标无 docker → 该机 failed 人读)。
 //   - archive : 放置归档 + 解包到目标目录。
 //
@@ -112,7 +113,8 @@ func deployFileName(a run.Artifact) string {
 	return base
 }
 
-// buildJarDeploy 构造 jar 的放置 + `java -jar` 启动命令(命令构造正确即可;目标无 java → failed)。
+// buildJarDeploy 构造 jar 的放置命令(**只放置、不启动**:部署期不跑 `java -jar`,进程启动
+// 由用户在 restartCommand 里显式配置,如 `systemctl restart app`)。
 func buildJarDeploy(a run.Artifact, cfg map[string]string) ([][]string, string, error) {
 	dir := targetDir(a, cfg)
 	jarPath := path.Join(dir, deployFileName(a))
@@ -121,8 +123,6 @@ func buildJarDeploy(a run.Artifact, cfg map[string]string) ([][]string, string, 
 	cmds := [][]string{
 		{"mkdir", "-p", dir},
 		{"sh", "-c", `printf '%s' "$1" | base64 -d > "$0"`, jarPath, payload},
-		// 启动命令:版本探测 + 后台拉起(目标无 java → 非零退出 → 该机 failed 人读)。
-		{"java", "-jar", jarPath, "--version"},
 	}
-	return cmds, fmt.Sprintf("jar 部署完成 → %s(已调起 java -jar)", jarPath), nil
+	return cmds, fmt.Sprintf("jar 部署完成 → %s(仅放置,未启动进程)", jarPath), nil
 }
