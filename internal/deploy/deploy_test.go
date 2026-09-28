@@ -194,6 +194,23 @@ func TestDeployForStageCommandOnlyMissingCmd(t *testing.T) {
 // svcCmdOnly 构造一个 deploy.Service(便于命令型用例复用)。
 func svcCmdOnly(tgt *stubTarget, rsvc run.Service) Service { return New(tgt, rsvc) }
 
+// TestDeployOneUnsupportedArtifactType 验证兜底:产物类型不在冻结枚举内(入库时已被
+// run.AddArtifact 挡下,属不该出现的状态)→ 该机 failed + 人读信息,绝不猜着拼命令。
+func TestDeployOneUnsupportedArtifactType(t *testing.T) {
+	db := testDB(t)
+	tgt := &stubTarget{}
+	srv := seedServer(t, tgt, "odd-1")
+	svc := New(tgt, run.New(db)).(*service)
+
+	res := svc.deployOne(context.Background(), srv, run.Artifact{Type: "mystery"}, nil, &HealthCheck{})
+	if res.Status != run.TargetFailed || !strings.Contains(res.Message, "mystery") {
+		t.Fatalf("未知类型应 failed + 人读信息,got %+v", res)
+	}
+	if len(tgt.calls) != 0 {
+		t.Fatalf("未知类型不应执行任何命令:%v", tgt.calls)
+	}
+}
+
 // TestDeployDistSuccess 验证 dist 产物部署:命令 array 化、每机 success、run 终态保持 success。
 func TestDeployDistSuccess(t *testing.T) {
 	db := testDB(t)

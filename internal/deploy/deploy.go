@@ -654,9 +654,7 @@ func (s *service) deployFanout(ctx context.Context, servers []*target.Server, a 
 	return results
 }
 
-// deployOne 在一台目标机上构造并执行该产物类型的部署命令,返回该机结果。
-// 部署命令全部成功后,若配置了健康检查(Story 4.3),再经同一 Exec 链路做健康门控:
-// 探测通过 → success(message 含"健康检查通过");重试耗尽仍失败 → failed + 人读 message。
+// deployOne 在一台目标机上执行该产物类型的部署编排,返回该机结果。
 // 执行错误**不上抛**:映射为 status=failed + 人读 message(绝无明文密钥)。
 func (s *service) deployOne(ctx context.Context, srv *target.Server, a run.Artifact, cfg map[string]string, hc *HealthCheck) TargetResult {
 	// dist / jar / archive 走「发布目录 + current 软链原子切换 + 健康门控 + 失败回滚」零停机模式(Story 4.4)。
@@ -670,67 +668,17 @@ func (s *service) deployOne(ctx context.Context, srv *target.Server, a run.Artif
 		return s.deployImageOne(ctx, srv, a, cfg, hc, time.Now().UTC())
 	}
 
-	started := time.Now().UTC()
-	res := TargetResult{
+	// 产物类型是冻结枚举四种,上面已覆盖全部(dist/jar/archive + image)。能走到这里说明 type
+	// 不在枚举内(入库时被 run.AddArtifact 挡下,属不该出现的状态)→ 显式 failed 人读,不猜命令。
+	finish := time.Now().UTC()
+	return TargetResult{
 		ServerID:   srv.ID,
 		ServerName: srv.Name,
-		StartedAt:  started,
+		Status:     run.TargetFailed,
+		Message:    fmt.Sprintf("不支持的产物类型:%s", a.Type),
+		StartedAt:  finish,
+		FinishedAt: &finish,
 	}
-
-	cmds, summary, berr := buildCommands(a, cfg)
-	if berr != nil {
-		finish := time.Now().UTC()
-		res.Status = run.TargetFailed
-		res.Message = berr.Error()
-		res.FinishedAt = &finish
-		return res
-	}
-
-	execCtx, cancel := context.WithTimeout(ctx, execTimeout)
-	defer cancel()
-
-	for _, cmd := range cmds {
-		out, eerr := s.exec(execCtx, srv.ID, cmd)
-		if eerr != nil {
-			finish := time.Now().UTC()
-			res.Status = run.TargetFailed
-			res.Message = humanExecError(eerr)
-			res.FinishedAt = &finish
-			return res
-		}
-		if out != nil && out.ExitCode != 0 {
-			finish := time.Now().UTC()
-			res.Status = run.TargetFailed
-			// 命令本身非零退出:回显 stderr 摘要(target 层执行的是平台构造的命令,
-			// 不含凭据明文;仍截断防超大输出)。
-			res.Message = fmt.Sprintf("部署命令退出码 %d:%s", out.ExitCode, truncate(strings.TrimSpace(out.Stderr)))
-			res.FinishedAt = &finish
-			return res
-		}
-	}
-
-	// 部署命令全部成功 → 若配置了健康检查,做部署后健康门控(Story 4.3 / FR-12)。
-	// 探测在部署命令成功之后跑;每机独立;经同一 target.Exec 链路(array 不拼 shell)。
-	if hc.enabled() {
-		if herr := s.runHealthCheck(execCtx, srv.ID, hc); herr != nil {
-			finish := time.Now().UTC()
-			res.Status = run.TargetFailed
-			res.Message = herr.Error()
-			res.FinishedAt = &finish
-			return res
-		}
-		finish := time.Now().UTC()
-		res.Status = run.TargetSuccess
-		res.Message = summary + "(健康检查通过)"
-		res.FinishedAt = &finish
-		return res
-	}
-
-	finish := time.Now().UTC()
-	res.Status = run.TargetSuccess
-	res.Message = summary
-	res.FinishedAt = &finish
-	return res
 }
 
 // overallStatus 据每机结果聚合 run 终态:
