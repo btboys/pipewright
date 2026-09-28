@@ -213,7 +213,8 @@ make build          # 前端构建 → go:embed → 单个静态二进制 ./pipe
 - **永不卡住运行的回退**:文件**缺失** → 回退到画布(UI)里已配置的流水线;文件存在但 **YAML 非法** → 同样回退到已存的画布配置。
 - **作用范围**:YAML 只管**流水线结构**(阶段 / 任务 / `needs` / DAG 编排);**变量与缓存、环境与凭据、触发规则**仍来自画布(UI)设置,**不写在 YAML 里**。
 - **schema** 与平台「从 YAML 导入」用的是同一套(`version` + `stages` → `jobs`,job 用嵌套 `script:` 块写 `image`/`commands`/`env`/`workdir`)。
-- **节点类型**(画布与 YAML 通用):`git_source`、`script`、`build_backend`、`build_frontend`、`build_image`、`push_image`、`deploy_ssh`、`deploy_frontend`、`health_check`、`notify`、`templated`、`custom`。
+- **节点类型**(画布与 YAML 通用):`git_source`、`script`、`build_backend`、`build_frontend`、`build_image`、`push_image`、`deploy_ssh`、`deploy_frontend`、`ssh_exec`、`health_check`、`notify`、`templated`、`custom`。
+  - `ssh_exec`(SSH 执行):在已登记的服务器上跑运维命令(改属主/权限、重启服务、清缓存)。选「目标服务器 + 执行用户 + 多行命令(+ 可选超时)」;**执行用户**留空或与服务器登录用户相同 → 以登录用户直接执行,不同 → `sudo -n -u <用户>`(远端需配 NOPASSWD)。命令正文会原文写进运行日志,切勿写明文密钥。
 
 ```yaml
 version: 1

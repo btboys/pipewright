@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'Déploiement SSH',
   typeDeploySshDesc: 'Déploie l’artefact sur un serveur cible via SSH',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'Exécution SSH',
+  typeSshExecDesc: 'Exécute des commandes d’exploitation sur un serveur enregistré (chown, redémarrage de service, purge de cache)',
+  fieldSshUserLabel: 'Utilisateur d’exécution',
+  fieldSshUserHint:
+    'Vide ou identique à l’utilisateur de connexion du serveur = exécution directe avec cet utilisateur ; sinon sudo -n -u <utilisateur> (l’hôte cible doit avoir NOPASSWD, faute de quoi ce nœud échoue honnêtement)',
+  fieldSshCommandsLabel: 'Commandes',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    'Une commande par ligne, réunies dans un script set -e exécuté par le sh distant (une ligne en échec fait échouer le nœud) ; l’espace réservé {\'{{paramètres}}\'} est pris en charge. ⚠️ Le texte des commandes est écrit tel quel dans le journal d’exécution : ne mettez jamais de secret en clair ici (utilisez le coffre ou les variables)',
+  fieldSshTimeoutHint: 'Délai d’exécution par serveur ; en cas de dépassement, ce nœud échoue. Vide / 0 = illimité',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: 'Porte de santé',
   typeHealthCheckDesc: 'Sonde la santé après le déploiement, retour arrière en cas d’échec',

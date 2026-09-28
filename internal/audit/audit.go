@@ -49,6 +49,9 @@ const (
 	ActionSystemPrune        = "system_prune"
 	ActionContainerTerminal  = "container_terminal"
 	ActionServerTerminal     = "server_terminal"
+	// ActionSSHExec 是流水线「SSH 执行」节点在目标服务器上执行命令(高危:任意命令落地)。
+	// 与终端会话同款口径:TargetType = server、TargetID = serverId,Detail 只存摘要(绝不含完整命令/密钥明文)。
+	ActionSSHExec = "ssh_exec"
 	// 流水线模板 + 变量组(FR-8-13 复用基座)。
 	ActionTemplateCreate = "template_create"
 	ActionTemplateDelete = "template_delete"

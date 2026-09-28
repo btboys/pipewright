@@ -409,6 +409,7 @@ needs 填「本阶段内它所依赖的其它 job 的 name」(数组)。**凡有
 - push_image:无需 config(随 build_image 推送)。
 - deploy_ssh/deploy_frontend:artifactName(**必填**:要部署的产物名。文件产物填构建节点 artifactPath 里声明的名字,如 "web"/"api";部署镜像时填项目 slug,即项目名的小写连字符形式,如项目名 "Acme Shop" → "acme-shop")、containerName(仅镜像部署,据项目名取,如 "<proj>-app")、ports(仅镜像部署,如 "8080:8080")、strategy("recreate"|"rolling");serverId 留空(用户选目标机)。**不要再写 artifactType**(产物类型偏好已废除)。
 - health_check:probeMode("http")、url(据服务端口/框架填,Spring Boot 用 "http://localhost:<宿主端口>/actuator/health",其它用 "/healthz")、expectStatus("200")、retries("10")、intervalSeconds("3")。
+- ssh_exec:commands(多行运维命令,只用于部署后的收尾:修属主/权限、重启服务、清缓存)、user(执行用户,默认 "root";留空 = 以服务器登录用户执行)、timeoutSeconds(可选,如 "120");serverId 留空(用户选目标机)。**谨慎使用**:这是任意命令直落目标机,仅在确有运维收尾步骤时才生成。
 - notify:titleTemplate/bodyTemplate(可用 {{project}} {{branch}} {{status}});channel 留空(用户选渠道)。
 - git_source:config 留空 {}。
 

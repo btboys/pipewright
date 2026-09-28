@@ -338,6 +338,55 @@ func TestMarshalDeterministic(t *testing.T) {
 	}
 }
 
+// TestMarshalSSHExecKeepsCommandsInConfig 验证「SSH 执行」节点(ssh_exec)的 commands 不会被
+// 渲染成 script: 块 —— 没有运行镜像的节点不是容器脚本步骤,commands 应原样留在 config: 透传。
+func TestMarshalSSHExecKeepsCommandsInConfig(t *testing.T) {
+	doc := `stages:
+  - id: stg_src
+    name: 源
+    kind: source
+    jobs: [{name: 源, type: git_source}]
+  - name: 运维
+    kind: deploy
+    needs: [stg_src]
+    jobs:
+      - name: 重启服务
+        type: ssh_exec
+        config:
+          serverId: srv-1
+          user: root
+          commands: "systemctl restart app\nchown -R app:app /opt/app"
+`
+	cfg, err := Parse([]byte(doc))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	out, err := Marshal(cfg.Spec)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	yaml := string(out)
+	if strings.Contains(yaml, "script:") {
+		t.Fatalf("ssh_exec 不该渲染出 script: 块(会被读成容器脚本步骤):\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "commands:") {
+		t.Fatalf("ssh_exec 的 commands 应留在 config: 里:\n%s", yaml)
+	}
+	// 往返一致:再解析回来仍是同一条多行命令 + 同样的目标服务器。
+	back, err := Parse(out)
+	if err != nil {
+		t.Fatalf("re-Parse: %v", err)
+	}
+	job := back.Spec.Stages[1].Jobs[0]
+	if job.Type != "ssh_exec" || job.Config["serverId"] != "srv-1" || job.Config["user"] != "root" {
+		t.Fatalf("往返后 config 不符:%+v", job.Config)
+	}
+	cmds, _ := job.Config["commands"].(string)
+	if !strings.Contains(cmds, "systemctl restart app") || !strings.Contains(cmds, "chown -R app:app /opt/app") {
+		t.Fatalf("往返后多行命令丢失:%q", cmds)
+	}
+}
+
 // TestParseAutoFillsStageID 验证缺省 id 时由领域规范化补 uuid(不报错)。
 func TestParseAutoFillsStageID(t *testing.T) {
 	doc := `stages:

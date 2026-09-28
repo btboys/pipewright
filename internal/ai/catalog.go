@@ -36,6 +36,8 @@ func BuiltinNodeCatalog() []NodeKind {
 			Description: "经 SSH 把产物(jar/dist/image)部署到目标服务器。"},
 		{Type: "deploy_frontend", Label: "前端推送部署", Category: "deploy",
 			Description: "把前端 dist 经 SSH 零停机部署到服务器(滚动 + reload)。"},
+		{Type: "ssh_exec", Label: "SSH 执行", Category: "deploy",
+			Description: "在已登记的目标服务器上经 SSH 执行运维命令(修属主/权限、重启服务、清缓存/日志)。只在部署后的收尾操作场景使用。"},
 		{Type: "health_check", Label: "健康检查", Category: "deploy",
 			Description: "部署后探测服务健康(HTTP/命令),失败可回滚。建议接在部署节点之后。"},
 		{Type: "notify", Label: "通知", Category: "notify",

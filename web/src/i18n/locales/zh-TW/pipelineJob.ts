@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH 部署',
   typeDeploySshDesc: '透過 SSH 把產物部署到目標伺服器',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH 執行',
+  typeSshExecDesc: '在已登記伺服器上執行維運命令(改擁有者/重啟服務/清快取)',
+  fieldSshUserLabel: '執行使用者',
+  fieldSshUserHint:
+    '留空、或與伺服器登入使用者相同 = 以登入使用者直接執行;不同則用 sudo -n -u <使用者>(遠端需設 NOPASSWD,否則本節點誠實失敗)',
+  fieldSshCommandsLabel: '執行命令',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    '每行一條,合成 set -e 指令稿在遠端 sh 執行(任一行失敗即失敗);支援佔位 {\'{{參數}}\'}。⚠️ 命令正文會原文寫進執行日誌,切勿在此寫明文金鑰(金鑰請走保險庫/變數)',
+  fieldSshTimeoutHint: '單台命令執行逾時;逾時即判本節點失敗。留空 / 0 = 不限',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: '健康閘控',
   typeHealthCheckDesc: '部署後探測健康,失敗則回復',

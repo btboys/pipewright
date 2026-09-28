@@ -23,6 +23,9 @@ const ICONS: Record<string, string> = {
     '<path d="M12 15V4"/><path d="m8 8 4-4 4 4"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/>',
   deploy_ssh:
     '<rect x="3" y="4" width="18" height="6" rx="1.6"/><rect x="3" y="14" width="18" height="6" rx="1.6"/><path d="M7 7h.01M7 17h.01"/>',
+  // SSH 执行:终端提示符 + 右向箭头(把命令送到目标机执行),与「SSH 部署」的机架图标区分开。
+  ssh_exec:
+    '<rect x="2.5" y="4" width="19" height="16" rx="1.8"/><path d="m6.5 9.5 2.5 2-2.5 2M12 14h5"/>',
   health_check: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   notify:
     '<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8.5-2.5 8.5h17S18 15 18 8.5"/><path d="M13.6 21a2 2 0 0 1-3.2 0"/>',

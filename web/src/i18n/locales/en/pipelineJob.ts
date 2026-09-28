@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH deploy',
   typeDeploySshDesc: 'Deploy the artifact to a target server over SSH',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH exec',
+  typeSshExecDesc: 'Run ops commands on a registered server (chown, restart a service, clear cache)',
+  fieldSshUserLabel: 'Run as user',
+  fieldSshUserHint:
+    'Empty or equal to the server login user = run as that login user; otherwise sudo -n -u <user> (the target host needs NOPASSWD, or this node fails honestly)',
+  fieldSshCommandsLabel: 'Commands',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    'One command per line, joined into a set -e script executed by the remote sh (any failing line fails the node); the placeholder {\'{{params}}\'} is supported. ⚠️ The command text is written verbatim to the run log — never put plaintext secrets here (use the vault or variables)',
+  fieldSshTimeoutHint: 'Per-server command timeout; a timeout fails this node. Empty / 0 = unlimited',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: 'Health gate',
   typeHealthCheckDesc: 'Probe health after deploy, roll back on failure',

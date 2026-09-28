@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH 배포',
   typeDeploySshDesc: 'SSH 를 통해 아티팩트를 대상 서버에 배포',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH 실행',
+  typeSshExecDesc: '등록된 서버에서 운영 명령 실행(소유자 변경/서비스 재시작/캐시 정리)',
+  fieldSshUserLabel: '실행 사용자',
+  fieldSshUserHint:
+    '비우거나 서버 로그인 사용자와 같으면 해당 사용자로 직접 실행;다르면 sudo -n -u <사용자>(대상 호스트에 NOPASSWD 필요, 없으면 이 노드는 정직하게 실패)',
+  fieldSshCommandsLabel: '실행 명령',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    '한 줄에 하나씩, set -e 스크립트로 합쳐 원격 sh 에서 실행(한 줄이라도 실패하면 실패);자리표시자 {\'{{매개변수}}\'} 지원. ⚠️ 명령 본문은 실행 로그에 그대로 기록되므로 평문 시크릿을 쓰지 마세요(보관소/변수 사용)',
+  fieldSshTimeoutHint: '서버 1대당 실행 타임아웃. 초과하면 이 노드는 실패. 비움 / 0 = 무제한',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: '헬스 게이트',
   typeHealthCheckDesc: '배포 후 헬스 프로브, 실패 시 롤백',

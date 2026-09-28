@@ -17,6 +17,50 @@ import (
 // dialTimeout 是 TCP 拨号 + SSH 握手的兜底超时(ctx 无 deadline 时生效)。
 const dialTimeout = 10 * time.Second
 
+// maxExecOutputBytes 是**缓冲式**执行(Run / RunWithStdin)每路 stdout / stderr 的保留上限。
+//
+// 缓冲式实现把远端输出全量读进内存,而远端命令可以无限输出(`yes`、`cat` 大日志、`journalctl`
+// 全量)——不设上限就是一条命令打崩进程。超限字节直接丢弃(远端命令不受影响,继续跑完),
+// ExecResult.Truncated 置位供调用方提示「输出已截断」。
+//
+// 流式路径(RunStream / RunInteractive)不适用:它们是调用方边读边消费,不存在无界缓冲。
+const maxExecOutputBytes = 8 << 20 // 8 MiB / 流
+
+// limitedBuffer 是带上限的 bytes.Buffer:写入超过 max 字节后丢弃溢出部分并置 truncated。
+// 零值可用(默认上限 maxExecOutputBytes);非并发安全(单个 ssh session 串行写入)。
+//
+// Write 始终返回 len(p), nil —— 即便内容被丢弃也报告"全部消费"。这是**必需**的:短写会让
+// x/crypto/ssh 内部 io.Copy 报 io.ErrShortWrite,进而把写满上限误判成会话错误(远端命令被
+// 中断、退出码丢失)。我们只需要内容截断,不需要中断会话。
+type limitedBuffer struct {
+	buf       bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	n := len(p)
+	limit := l.limit
+	if limit <= 0 {
+		limit = maxExecOutputBytes
+	}
+	remain := limit - l.buf.Len()
+	if remain <= 0 {
+		if n > 0 {
+			l.truncated = true
+		}
+		return n, nil
+	}
+	if n > remain {
+		l.truncated = true
+		p = p[:remain]
+	}
+	_, _ = l.buf.Write(p)
+	return n, nil
+}
+
+func (l *limitedBuffer) String() string { return l.buf.String() }
+
 // sshDialer 是基于 golang.org/x/crypto/ssh 的默认 SSHDialer 实现。
 //
 // AC-SEC-02:cmd 以 []string(程序 + 参数)传入,经 quoteArgs 对各参数 POSIX shell 转义
@@ -63,7 +107,7 @@ func (sshDialer) Run(ctx context.Context, addr string, cfg SSHConfig, cmd []stri
 	}
 	defer func() { _ = session.Close() }()
 
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr limitedBuffer
 	session.Stdout = &stdout
 	session.Stderr = &stderr
 
@@ -71,8 +115,9 @@ func (sshDialer) Run(ctx context.Context, addr string, cfg SSHConfig, cmd []stri
 	runErr := runWithContext(ctx, session, quoteArgs(cmd))
 
 	res := &ExecResult{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
+		Stdout:    stdout.String(),
+		Stderr:    stderr.String(),
+		Truncated: stdout.truncated || stderr.truncated,
 	}
 
 	if runErr != nil {
@@ -123,13 +168,17 @@ func (sshDialer) RunWithStdin(ctx context.Context, addr string, cfg SSHConfig, c
 	}
 	defer func() { _ = session.Close() }()
 
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr limitedBuffer
 	session.Stdout = &stdout
 	session.Stderr = &stderr
 	session.Stdin = stdin // 产物字节经 stdin 流式喂给远端 `cat > file`(无 argv 长度限)。
 
 	runErr := runWithContext(ctx, session, quoteArgs(cmd))
-	res := &ExecResult{Stdout: stdout.String(), Stderr: stderr.String()}
+	res := &ExecResult{
+		Stdout:    stdout.String(),
+		Stderr:    stderr.String(),
+		Truncated: stdout.truncated || stderr.truncated,
+	}
 	if runErr != nil {
 		var exitErr *ssh.ExitError
 		if errors.As(runErr, &exitErr) {

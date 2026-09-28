@@ -77,8 +77,12 @@ func genTestSSHKey(t *testing.T) (privPEM string, authLine string) {
 	return string(pem.EncodeToMemory(block)), strings.TrimSpace(string(ssh.MarshalAuthorizedKey(sshPub)))
 }
 
-// startSSHContainer 起一个 alpine + sshd 容器当真目标,注入测试 key 后轮询直至 SSH 可连。
+// startSSHContainer 起一个最小 Linux + sshd 容器当真目标,注入测试 key 后轮询直至 SSH 可连。
 // 返回就绪容器 + 自动 t.Cleanup 销毁。任一步失败 → t.Fatalf(已过门禁,失败即真问题)。
+//
+// 默认用 alpine:3.20 + apk。拉不到 Docker Hub(alpine 不存在且无镜像源)时可用 env 换成**本地已有**
+// 的镜像:`PIPEWRIGHT_E2E_SSH_IMAGE=<image>` + `PIPEWRIGHT_E2E_SSH_BOOTSTRAP=apt`(apt 系镜像,如
+// maven/node/postgres)。容器内 sshd 的启动方式与默认一致,只是装包命令不同。
 func startSSHContainer(t *testing.T) *sshContainer {
 	t.Helper()
 	requireE2EDeploy(t)
@@ -88,10 +92,20 @@ func startSSHContainer(t *testing.T) *sshContainer {
 	name := fmt.Sprintf("pw-e2e-sshd-%d-%d", os.Getpid(), time.Now().UnixNano()%100000)
 	_ = exec.Command(dockerBin, "rm", "-f", name).Run()
 
+	image := strings.TrimSpace(os.Getenv("PIPEWRIGHT_E2E_SSH_IMAGE"))
+	if image == "" {
+		image = "alpine:3.20"
+	}
+	// 装包差异只在这一行:apk(默认,alpine)vs apt(本地镜像离线自测用)。
+	install := "apk add --no-cache openssh >/dev/null"
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("PIPEWRIGHT_E2E_SSH_BOOTSTRAP")), "apt") {
+		install = "apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq openssh-server >/dev/null 2>&1 && mkdir -p /run/sshd"
+	}
+
 	// 容器内:装 openssh → 生成 host key → 写 authorized_keys → 允许 root pubkey 登录 → 前台跑 sshd。
 	// authorized_keys 经位置参数 $0 注入(不拼进脚本体,纵深防御)。
 	bootstrap := `set -e
-apk add --no-cache openssh >/dev/null
+` + install + `
 ssh-keygen -A
 mkdir -p /root/.ssh
 printf '%s\n' "$0" > /root/.ssh/authorized_keys
@@ -101,7 +115,7 @@ sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 exec /usr/sbin/sshd -D -e`
 
-	args := []string{"run", "-d", "--name", name, "-p", "0:22", "alpine:3.20",
+	args := []string{"run", "-d", "--name", name, "-p", "0:22", image,
 		"sh", "-c", bootstrap, authLine}
 	if out, err := exec.Command(dockerBin, args...).CombinedOutput(); err != nil {
 		t.Skipf("起 alpine+sshd 容器失败(可能镜像不可拉): %v\n%s", err, string(out))
@@ -124,8 +138,9 @@ exec /usr/sbin/sshd -D -e`
 		t.Fatalf("解析容器端口失败: %q", line)
 	}
 
-	// 轮询 SSH 真可连(apk add openssh 约需 ~10s;给足 60s)。
-	c.waitReady(t, 60*time.Second)
+	// 轮询 SSH 真可连:apk 装 openssh 约 ~10s;apt 系镜像(离线自测用)**首轮 apt-get update 可能 1~2 分钟**,
+	// 故给足 180s(镜像源慢时不该把 e2e 误判成失败)。
+	c.waitReady(t, 180*time.Second)
 	return c
 }
 

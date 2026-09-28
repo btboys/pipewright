@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH-Bereitstellung',
   typeDeploySshDesc: 'Stellt das Artefakt per SSH auf einem Zielserver bereit',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH-Ausführung',
+  typeSshExecDesc: 'Führt Betriebsbefehle auf einem registrierten Server aus (Besitzer ändern, Dienst neu starten, Cache leeren)',
+  fieldSshUserLabel: 'Ausführungsbenutzer',
+  fieldSshUserHint:
+    'Leer oder gleich dem Login-Benutzer des Servers = Ausführung direkt als dieser Benutzer; sonst sudo -n -u <Benutzer> (der Zielhost braucht NOPASSWD, sonst schlägt dieser Knoten ehrlich fehl)',
+  fieldSshCommandsLabel: 'Befehle',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    'Ein Befehl pro Zeile, zusammengefasst zu einem set -e-Skript, das die entfernte sh ausführt (eine fehlschlagende Zeile lässt den Knoten fehlschlagen); der Platzhalter {\'{{Parameter}}\'} wird unterstützt. ⚠️ Der Befehlstext wird wörtlich ins Ausführungsprotokoll geschrieben – hier niemals Klartext-Geheimnisse eintragen (Tresor oder Variablen verwenden)',
+  fieldSshTimeoutHint: 'Zeitlimit pro Server; bei Überschreitung schlägt dieser Knoten fehl. Leer / 0 = unbegrenzt',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: 'Health-Gate',
   typeHealthCheckDesc: 'Prüft nach der Bereitstellung die Gesundheit, Rollback bei Fehler',

@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH 部署',
   typeDeploySshDesc: '通过 SSH 把产物部署到目标服务器',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH 执行',
+  typeSshExecDesc: '在已登记服务器上执行运维命令(改属主/重启服务/清缓存)',
+  fieldSshUserLabel: '执行用户',
+  fieldSshUserHint:
+    '留空、或与服务器登录用户相同 = 以登录用户直接执行;不同则用 sudo -n -u <用户>(远端需配 NOPASSWD,否则本节点诚实失败)',
+  fieldSshCommandsLabel: '执行命令',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    '每行一条,合成 set -e 脚本在远端 sh 执行(任一行失败即失败);支持占位 {\'{{参数}}\'}。⚠️ 命令正文会原文写进运行日志,切勿在此写明文密钥(密钥请走保险库/变量)',
+  fieldSshTimeoutHint: '单台命令执行超时;超时即判本节点失败。留空 / 0 = 不限',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: '健康门控',
   typeHealthCheckDesc: '部署后探测健康,失败则回滚',

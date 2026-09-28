@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'Despliegue SSH',
   typeDeploySshDesc: 'Despliega el artefacto en un servidor de destino por SSH',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'Ejecución SSH',
+  typeSshExecDesc: 'Ejecuta comandos de operación en un servidor registrado (chown, reiniciar servicio, limpiar caché)',
+  fieldSshUserLabel: 'Usuario de ejecución',
+  fieldSshUserHint:
+    'Vacío o igual al usuario de acceso del servidor = se ejecuta con ese usuario; si es distinto, sudo -n -u <usuario> (el host destino necesita NOPASSWD o este nodo fallará honestamente)',
+  fieldSshCommandsLabel: 'Comandos',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    'Uno por línea, unidos en un script set -e ejecutado por el sh remoto (si falla una línea, falla el nodo); admite el marcador {\'{{parámetros}}\'}. ⚠️ El texto del comando se escribe tal cual en el log de la ejecución: nunca pongas secretos en claro aquí (usa el almacén de credenciales o variables)',
+  fieldSshTimeoutHint: 'Tiempo máximo por servidor; al agotarse, este nodo falla. Vacío / 0 = sin límite',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: 'Puerta de salud',
   typeHealthCheckDesc: 'Sondea la salud tras el despliegue, revierte si falla',

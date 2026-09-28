@@ -102,6 +102,18 @@ export default {
   typeDeploySshLabel: 'SSH デプロイ',
   typeDeploySshDesc: 'SSH 経由で成果物をターゲットサーバーにデプロイ',
 
+  // ─── jobConfigSchema · ssh_exec ────────────────────────────────────────
+  typeSshExecLabel: 'SSH 実行',
+  typeSshExecDesc: '登録済みサーバーで運用コマンドを実行(所有者変更/サービス再起動/キャッシュ削除)',
+  fieldSshUserLabel: '実行ユーザー',
+  fieldSshUserHint:
+    '空欄、またはサーバーのログインユーザーと同じ = そのユーザーで直接実行。異なる場合は sudo -n -u <ユーザー>(対象ホストに NOPASSWD が必要。無ければこのノードは正直に失敗)',
+  fieldSshCommandsLabel: '実行コマンド',
+  fieldSshCommandsPlaceholder: 'chown -R app:app /opt/app\nsystemctl restart app',
+  fieldSshCommandsHint:
+    '1 行 1 コマンド。set -e スクリプトにまとめてリモートの sh で実行(1 行でも失敗すれば失敗)。プレースホルダー {\'{{パラメータ}}\'} に対応。⚠️ コマンド本文は実行ログにそのまま記録されるため、平文のシークレットは書かないでください(保険庫/変数を使用)',
+  fieldSshTimeoutHint: 'サーバー 1 台あたりの実行タイムアウト。超過するとこのノードは失敗。空欄 / 0 = 無制限',
+
   // ─── jobConfigSchema · health_check ────────────────────────────────────
   typeHealthCheckLabel: 'ヘルスゲート',
   typeHealthCheckDesc: 'デプロイ後に健康状態をプローブ、失敗時はロールバック',

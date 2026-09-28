@@ -95,6 +95,10 @@ type ExecResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int
+	// Truncated 报告 stdout/stderr 至少有一路超过单流保留上限被截断(见 ssh.go 的
+	// maxExecOutputBytes)。截断只影响回传内容长度,**不影响 ExitCode 语义**;调用方应据此
+	// 提示「输出已截断」,而不是把截断后的内容当成完整输出。
+	Truncated bool
 }
 
 // TestResult 是测试连接的结果(冻结契约)。Output 为探测命令的截断输出。

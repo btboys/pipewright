@@ -269,8 +269,19 @@ func jobConfig(jn jobNode) (map[string]any, error) {
 
 // splitConfig 从 Job.Config 里把脚本步骤的约定键重建为 scriptNode,其余键作为透传 config 返回。
 // 用于 Marshal 往返;commands/env 若为 JSON 编码则解码回结构,否则退化为透传(不丢数据)。
+//
+// 仅当配了 image(configKeyImage)时才重建 script 块:没有运行镜像的节点**不是**容器脚本步骤
+// (典型:`ssh_exec` 的 commands 是送到目标机上执行的,不跑容器)。否则这些键会以脚本块的形状
+// 出现在 YAML 里,读起来像是"在容器里跑命令";宁可让它们原样落回 config: 透传(往返一致)。
 func splitConfig(cfg map[string]any) (*scriptNode, map[string]string) {
 	rest := map[string]string{}
+	if strings.TrimSpace(asString(cfg[configKeyImage])) == "" {
+		for k, v := range cfg {
+			rest[k] = asString(v)
+		}
+		return nil, rest
+	}
+
 	var script scriptNode
 	hasScript := false
 

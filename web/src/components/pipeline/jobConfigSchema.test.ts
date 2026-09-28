@@ -9,6 +9,7 @@ import {
   groupedJobTypes,
   schemaKeys,
   splitConfig,
+  isScriptClassType,
 } from './jobConfigSchema'
 
 describe('jobConfigSchema', () => {
@@ -134,6 +135,30 @@ describe('jobConfigSchema', () => {
         expect(keys).toContain('restartCommand')
         expect(keys).not.toContain('containerName')
       }
+    })
+  })
+
+  describe('ssh_exec fields', () => {
+    it('owns exactly the SSH-exec config keys(单台服务器 + 执行用户 + 命令 + 超时)', () => {
+      expect([...schemaKeys('ssh_exec')].sort()).toEqual(['commands', 'serverId', 'timeoutSeconds', 'user'])
+    })
+
+    it('归到「部署」分类,并预填执行用户 root', () => {
+      expect(JOB_TYPE_SPECS.ssh_exec.category).toBe('deploy')
+      expect(JOB_TYPE_SPECS.ssh_exec.defaultConfig).toEqual({ user: 'root' })
+      const deployGroup = groupedJobTypes().find((g) => g.id === 'deploy')
+      expect(deployGroup?.specs.map((s) => s.type)).toContain('ssh_exec')
+    })
+
+    it('目标服务器是单选 server 选择器(写 serverId,与 deploy_ssh 同款)', () => {
+      const field = JOB_TYPE_SPECS.ssh_exec.fields.find((f) => f.key === 'serverId')
+      expect(field?.kind).toBe('server')
+      expect(JOB_TYPE_SPECS.ssh_exec.fields.find((f) => f.key === 'commands')?.kind).toBe('textarea')
+    })
+
+    it('不是脚本类节点(否则可视化步骤构建器会误接管)', () => {
+      expect(isScriptClassType('ssh_exec')).toBe(false)
+      expect(isScriptClassType('templated')).toBe(true)
     })
   })
 

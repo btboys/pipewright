@@ -106,6 +106,7 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 		scriptJobs := make([]pipeline.Job, 0, len(stage.Jobs))
 		buildImageJobs := make([]pipeline.Job, 0, len(stage.Jobs))
 		deployJobs := make([]pipeline.Job, 0, len(stage.Jobs))
+		sshExecJobs := make([]pipeline.Job, 0, len(stage.Jobs))
 		notifyJobs := make([]pipeline.Job, 0, len(stage.Jobs))
 		hasPushJob := false
 		for _, jb := range stage.Jobs {
@@ -118,14 +119,16 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 				hasPushJob = true
 			case isDeployJob(jb.Type):
 				deployJobs = append(deployJobs, jb)
+			case isSSHExecJob(jb.Type):
+				sshExecJobs = append(sshExecJobs, jb)
 			case strings.TrimSpace(jb.Type) == "notify":
 				notifyJobs = append(notifyJobs, jb)
 			}
 		}
 
 		needsBuild := len(scriptJobs) > 0 || len(buildImageJobs) > 0
-		// 没有任何可执行节点(script/build_image/deploy_ssh/notify)且无 post → 诚实占位放行。
-		if !needsBuild && len(deployJobs) == 0 && len(notifyJobs) == 0 && len(stage.Post) == 0 {
+		// 没有任何可执行节点(script/build_image/deploy_ssh/ssh_exec/notify)且无 post → 诚实占位放行。
+		if !needsBuild && len(deployJobs) == 0 && len(sshExecJobs) == 0 && len(notifyJobs) == 0 && len(stage.Post) == 0 {
 			for _, jb := range stage.Jobs {
 				_ = rep.JobRunning(ctx, jb.ID)
 				jr := rep.JobReporter(jb.ID)
@@ -301,6 +304,20 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 				_ = rep.JobDone(ctx, jb.ID, run.StepSuccess)
 			}
 
+			// ── SSH 执行节点(ssh_exec):在节点选定的目标机上跑运维命令(不取产物、不动 run 终态)──
+			// 排在部署之后、通知之前:典型用法是「部署完成后修属主/重启服务/清缓存」,再发通知。
+			for _, jb := range sshExecJobs {
+				if canceled(ctx) {
+					return run.ErrCanceled
+				}
+				_ = rep.JobRunning(ctx, jb.ID)
+				if err := b.runSSHExecJob(ctx, rep.JobReporter(jb.ID), jb, r); err != nil {
+					_ = rep.JobDone(ctx, jb.ID, run.StepFailed)
+					return err
+				}
+				_ = rep.JobDone(ctx, jb.ID, run.StepSuccess)
+			}
+
 			// ── 通知节点(notify):按节点配的渠道发通知(best-effort,不因通知失败而失败本阶段)──
 			for _, jb := range notifyJobs {
 				if canceled(ctx) {
@@ -421,6 +438,8 @@ func (b *Builder) runStageJobsDAG(
 				return b.runBuildImageJobIsolated(ctx, jsink, jrep, r, jb, stage, proj, settings, hasPushJob)
 			case isDeployJob(jb.Type):
 				return b.runDeployJob(ctx, jrep, jb, r.ID, r.Trigger.Params)
+			case isSSHExecJob(jb.Type):
+				return b.runSSHExecJob(ctx, jrep, jb, r)
 			case strings.TrimSpace(jb.Type) == "push_image":
 				// 推送随构建镜像节点完成(hasPushJob);本节点仅用于在 DAG 中编排顺序/展示。
 				_ = jrep.Log(ctx, streamStdout, fmt.Sprintf("· 推送镜像「%s」:已随构建镜像节点完成推送(本节点用于编排顺序)", jb.Name))

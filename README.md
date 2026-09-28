@@ -213,7 +213,8 @@ Commit your pipeline structure to `.pipewright.yml` in the repo — **same sourc
 - **Never breaks a run**: if the file is **missing** → falls back to the pipeline configured in the canvas (UI); if it exists but is **invalid YAML** → also falls back to the stored canvas config.
 - **Scope**: the YAML controls **pipeline structure only** (stages / jobs / `needs` / DAG layout). **Variables & cache, environments & credentials, and trigger rules** still come from the canvas (UI) settings — they are **not** in the YAML.
 - **Schema** is the same one used by the platform's "Import from YAML" (`version` + `stages` → `jobs`; a job uses a nested `script:` block for `image`/`commands`/`env`/`workdir`).
-- **Job types** available in both the canvas and the YAML: `git_source`, `script`, `build_backend`, `build_frontend`, `build_image`, `push_image`, `deploy_ssh`, `deploy_frontend`, `health_check`, `notify`, `templated`, `custom`.
+- **Job types** available in both the canvas and the YAML: `git_source`, `script`, `build_backend`, `build_frontend`, `build_image`, `push_image`, `deploy_ssh`, `deploy_frontend`, `ssh_exec`, `health_check`, `notify`, `templated`, `custom`.
+  - `ssh_exec` (SSH exec): run ops commands on a registered server (chown, restart a service, clear cache). Configure target server + run-as user + multi-line commands (+ optional timeout). **Run-as user** empty or equal to the server login user → runs as that user; otherwise `sudo -n -u <user>` (the host needs NOPASSWD). The command text is written verbatim to the run log — never put plaintext secrets there.
 
 ```yaml
 version: 1

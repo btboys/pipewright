@@ -55,21 +55,52 @@ func NewStageExecutorWithRunner(b *Builder, reportSink TestReportSink, lookup Ru
 	}
 }
 
-// runStageRemote 在远程 runner 上执行本阶段的 script job(见文件头模型)。
+// runStageRemote 在远程 runner 上执行本阶段的 script job(见文件头模型),并就地执行本阶段的
+// SSH 执行节点(ssh_exec 与 runner 无关,见下)。
 func (b *Builder) runStageRemote(ctx context.Context, r *run.Run, stage pipeline.Stage, rep dagrun.StageReporter, serverID string, tgt remoteExec) error {
 	scriptJobs := make([]pipeline.Job, 0, len(stage.Jobs))
+	sshExecJobs := make([]pipeline.Job, 0, len(stage.Jobs))
 	for _, jb := range stage.Jobs {
-		if isScriptJob(jb.Type) {
+		switch {
+		case isScriptJob(jb.Type):
 			scriptJobs = append(scriptJobs, jb)
+		case isSSHExecJob(jb.Type):
+			sshExecJobs = append(sshExecJobs, jb)
 		}
 	}
-	if len(scriptJobs) == 0 {
+	if len(scriptJobs) == 0 && len(sshExecJobs) == 0 {
 		for _, jb := range stage.Jobs {
 			_ = rep.Log(ctx, streamStdout, fmt.Sprintf("· %s(%s)— 远程 runner 仅执行 script 类型;本阶段放行", jb.Name, jb.Type))
 		}
 		return nil
 	}
 
+	// script job:下沉到远程 runner(控制机克隆 → 传输 → 远程容器跑)。
+	if len(scriptJobs) > 0 {
+		if err := b.runRemoteScriptJobs(ctx, r, stage, rep, serverID, tgt, scriptJobs); err != nil {
+			return err
+		}
+	}
+
+	// SSH 执行节点:与「项目是否配了远程 runner」无关 —— 它连的是节点自己选的目标机,命令从**控制机**
+	// 发出(凭据始终留在控制面,目标机无需 runner/docker)。若在此放行,用户会以为命令跑了。
+	for _, jb := range sshExecJobs {
+		if canceled(ctx) {
+			return run.ErrCanceled
+		}
+		_ = rep.JobRunning(ctx, jb.ID)
+		if err := b.runSSHExecJob(ctx, rep.JobReporter(jb.ID), jb, r); err != nil {
+			_ = rep.JobDone(ctx, jb.ID, run.StepFailed)
+			return err
+		}
+		_ = rep.JobDone(ctx, jb.ID, run.StepSuccess)
+	}
+	return nil
+}
+
+// runRemoteScriptJobs 把本阶段的 script job 下沉到远程 runner:控制机克隆 → tar.gz 经 SSH 传输 →
+// 远程机用容器跑(远程 driver:docker run 经 SSH),日志经 reporterSink 回流。
+func (b *Builder) runRemoteScriptJobs(ctx context.Context, r *run.Run, stage pipeline.Stage, rep dagrun.StageReporter, serverID string, tgt remoteExec, scriptJobs []pipeline.Job) error {
 	proj, _, perr := b.resolve(ctx, r)
 	if perr != nil {
 		_ = rep.Log(ctx, streamStderr, "无法加载项目构建配置:"+perr.Error())

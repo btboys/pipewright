@@ -290,6 +290,44 @@ const DEPLOY_SSH_FIELDS: JobField[] = [
   },
 ]
 
+// 「SSH 执行」节点(ssh_exec)的字段:在已登记服务器上跑运维命令 —— 不取产物、不做部署,
+// 只把命令经 SSH 送到目标机执行(补齐「改属主/权限、重启服务、清缓存」这类收尾动作)。
+//
+// 「执行用户」语义(与后端 runSSHExecArgv 一一对应):留空、或恰好等于该服务器的登录用户 →
+// 直接以登录用户执行(不套 sudo);不同 → `sudo -n -u <user> -H -- sh -c <脚本>`。
+// -n 让「需要密码」立即失败而不是挂在密码提示上,故远端需配 NOPASSWD(否则节点诚实失败)。
+const SSH_EXEC_FIELDS: JobField[] = [
+  {
+    key: 'serverId',
+    get label() { return t('pipelineJob.fieldServerIdLabel') },
+    kind: 'server',
+    get hint() { return t('pipelineJob.fieldServerIdHint') },
+  },
+  {
+    key: 'user',
+    get label() { return t('pipelineJob.fieldSshUserLabel') },
+    kind: 'text',
+    monospace: true,
+    placeholder: 'root',
+    get hint() { return t('pipelineJob.fieldSshUserHint') },
+  },
+  {
+    key: 'commands',
+    get label() { return t('pipelineJob.fieldSshCommandsLabel') },
+    kind: 'textarea',
+    monospace: true,
+    get placeholder() { return t('pipelineJob.fieldSshCommandsPlaceholder') },
+    get hint() { return t('pipelineJob.fieldSshCommandsHint') },
+  },
+  {
+    key: 'timeoutSeconds',
+    get label() { return t('pipelineJob.fieldTimeoutLabel') },
+    kind: 'number',
+    placeholder: '0',
+    get hint() { return t('pipelineJob.fieldSshTimeoutHint') },
+  },
+]
+
 export const JOB_TYPE_SPECS: Record<string, JobTypeSpec> = {
   git_source: {
     type: 'git_source',
@@ -436,6 +474,18 @@ export const JOB_TYPE_SPECS: Record<string, JobTypeSpec> = {
     accent: 'green',
     category: 'deploy',
     fields: DEPLOY_SSH_FIELDS,
+  },
+
+  ssh_exec: {
+    type: 'ssh_exec',
+    get label() { return t('pipelineJob.typeSshExecLabel') },
+    get description() { return t('pipelineJob.typeSshExecDesc') },
+    accent: 'green',
+    category: 'deploy',
+    fields: SSH_EXEC_FIELDS,
+    // 新建节点预填 root(多数目标机以 root 做收尾);若服务器登录用户本来就是 root / 同名,
+    // 后端会自动跳过 sudo,不会白白依赖远端 NOPASSWD。
+    defaultConfig: { user: 'root' },
   },
 
   health_check: {
@@ -645,6 +695,7 @@ export const PICKABLE_TYPES: readonly string[] = [
   'push_image',
   'deploy_frontend',
   'deploy_ssh',
+  'ssh_exec',
   'health_check',
   'notify',
   'script',

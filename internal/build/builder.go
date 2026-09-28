@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/btboys/pipewright/internal/artifactstore"
+	"github.com/btboys/pipewright/internal/audit"
 	"github.com/btboys/pipewright/internal/deploy"
 	"github.com/btboys/pipewright/internal/notify"
 	"github.com/btboys/pipewright/internal/pipeline"
@@ -61,6 +62,12 @@ type Builder struct {
 	// nil → 该类节点退化为占位日志(向后兼容;非-dag Builder.Run 路径不用)。
 	deployer deploy.Service
 	notifier notify.Service
+	// sshExec 是「SSH 执行」节点(ssh_exec)所需的 target 能力(取服务器视图 + array 化远程执行)。
+	// nil → 该类节点诚实失败(命令节点假成功比假失败危险;见 runSSHExecJob)。由 main 注入(WithSSHExec)。
+	sshExec sshExecer
+	// auditor 记录「SSH 执行」节点的高危落地(append-only 审计)。nil 则跳过审计写入(不阻断执行)。
+	// 由 main 注入(WithAuditor)。
+	auditor audit.Recorder
 	// buildCache 是构建依赖缓存库(build cache · P0):非 nil 时 script 类 job 执行前后据 job.Config
 	// 的 cachePaths/cacheKey 恢复/保存依赖目录(node_modules/.m2/.gradle 等),跨 run 持久化提速。
 	// nil 则不缓存(向后兼容)。由 main 注入(WithBuildCache)。缓存问题绝不让构建失败(best-effort)。
@@ -144,6 +151,22 @@ func WithStageDeployer(d deploy.Service) BuilderOption {
 // WithStageNotifier 注入通知服务,使 dag 里的 notify 节点真实发通知。
 func WithStageNotifier(n notify.Service) BuilderOption {
 	return func(b *Builder) { b.notifier = n }
+}
+
+// WithSSHExec 注入「SSH 执行」节点所需的 target 能力(取服务器视图 + 远程执行 array 命令)。
+// 不注入时 ssh_exec 节点诚实失败(不冒充执行成功)。
+func WithSSHExec(e sshExecer) BuilderOption {
+	return func(b *Builder) { b.sshExec = e }
+}
+
+// WithAuditor 注入审计记录器,使「SSH 执行」节点每次落地在 append-only 审计表留痕(与终端会话同款)。
+// nil 不改(不写审计,执行照常)。
+func WithAuditor(r audit.Recorder) BuilderOption {
+	return func(b *Builder) {
+		if r != nil {
+			b.auditor = r
+		}
+	}
 }
 
 // WithBuildCache 注入构建依赖缓存库(build cache · P0):script 类 job 配了 cachePaths 时,
