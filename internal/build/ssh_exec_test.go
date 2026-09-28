@@ -140,6 +140,37 @@ func TestSSHExecArgv(t *testing.T) {
 
 // ─── runSSHExecJob(节点主流程)──────────────────────────────────────────────────
 
+// TestLogSSHExecCommand 断言命令回显的**逐行**形状:heredoc 包住整段脚本,让人一眼看出
+// 「哪一段是平台加的 set -e、哪一段是自己的命令」——空格拼接 argv 会把这些行混成一条,
+// 真机上被误读成「跑了两条命令」。
+func TestLogSSHExecCommand(t *testing.T) {
+	cases := []struct {
+		name string
+		argv []string
+		want []string
+	}{
+		{
+			name: "以登录用户直接执行",
+			argv: []string{"sh", "-c", "set -e\nchown -R app:app /opt/app"},
+			want: []string{"$ sh -c <<'PWEOF'", "set -e\nchown -R app:app /opt/app", "PWEOF"},
+		},
+		{
+			name: "sudo 切换执行用户",
+			argv: []string{"sudo", "-n", "-u", "app", "-H", "--", "sh", "-c", "set -e\necho hi"},
+			want: []string{"$ sudo -n -u app -H -- sh -c <<'PWEOF'", "set -e\necho hi", "PWEOF"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rep := &sshExecReporter{}
+			logSSHExecCommand(context.Background(), rep, c.argv)
+			if !reflect.DeepEqual(rep.lines, c.want) {
+				t.Fatalf("回显不符\n got=%q\nwant=%q", rep.lines, c.want)
+			}
+		})
+	}
+}
+
 func TestRunSSHExecJob(t *testing.T) {
 	srv := &target.Server{ID: "srv-1", Name: "web-01", Host: "10.0.0.1", Port: 22, User: "deploy"}
 	okRes := func(stdout, stderr string, code int) *target.ExecResult {
@@ -179,7 +210,9 @@ func TestRunSSHExecJob(t *testing.T) {
 			wantAudit: 1, wantAuditUser: "",
 			wantLogContains: []string{
 				"web-01(deploy@10.0.0.1:22)", "deploy(登录用户,未套 sudo)", "执行 2 行命令",
-				"$ sh -c set -e", "uid=0(root)", "✓ SSH 执行完成",
+				// 回显用 heredoc 形式:一眼看出 set -e 是平台加的、整段是一个脚本。
+				"$ sh -c <<'PWEOF'", "set -e\nid\nwhoami", "PWEOF",
+				"uid=0(root)", "✓ SSH 执行完成",
 			},
 		},
 		{

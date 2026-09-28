@@ -130,7 +130,7 @@ func (b *Builder) runSSHExecJob(ctx context.Context, rep dagrun.StageReporter, j
 	// 前端 hint 因此明确警告「切勿在此写明文密钥」。
 	_ = rep.Log(ctx, streamStdout, fmt.Sprintf("→ SSH 执行:%s,以 %s 执行 %d 行命令",
 		sshExecTargetLabel(srv), sshExecWhoLabel(user, loginUser), len(lines)))
-	_ = rep.Log(ctx, streamStdout, "$ "+strings.Join(argv, " "))
+	logSSHExecCommand(ctx, rep, argv)
 	if timeout > 0 {
 		_ = rep.Log(ctx, streamStdout, fmt.Sprintf("超时上限 %d 秒(超时即判本节点失败)", timeout))
 	}
@@ -203,6 +203,33 @@ func (b *Builder) recordSSHExecAudit(ctx context.Context, r *run.Run, jb pipelin
 			"commandHead": truncateRunes(strings.Join(lines, "\n"), sshExecAuditHeadRunes),
 		},
 	})
+}
+
+// logSSHExecCommand 回显「即将在远端执行什么」。用 heredoc 形式呈现,而不是把 argv 用空格拼成一行:
+//
+//	$ sudo -n -u app -H -- sh -c <<'PWEOF'
+//	set -e
+//	<你的命令>
+//	PWEOF
+//
+// argv 本身**不变**(仍是 array,整段脚本作为单个参数交给远端 sh);这样写只是让人一眼看清
+// 「哪一段是平台加的 set -e、哪一段是自己的命令、整段是一个脚本」—— 空格拼接会把这些行混在一起,
+// 看起来像好几条独立命令(真机上就踩过这个误解)。
+func logSSHExecCommand(ctx context.Context, rep dagrun.StageReporter, argv []string) {
+	script := ""
+	if len(argv) > 0 {
+		script = argv[len(argv)-1]
+	}
+	// argv 尾部固定是 ["sh","-c",<脚本>];它前面(若有)是 sudo 前缀,原样回显。
+	head := ""
+	if len(argv) > 3 {
+		head = strings.Join(argv[:len(argv)-3], " ") + " "
+	}
+	_ = rep.Log(ctx, streamStdout, "$ "+head+"sh -c <<'PWEOF'")
+	for _, chunk := range chunkSSHExecLog(script) {
+		_ = rep.Log(ctx, streamStdout, chunk)
+	}
+	_ = rep.Log(ctx, streamStdout, "PWEOF")
 }
 
 // logSSHExecOutput 把远端某路输出写进节点日志:先按「行数 + 字节数」双重上限截出前缀,
