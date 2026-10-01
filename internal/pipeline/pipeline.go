@@ -216,6 +216,57 @@ func (s *service) fillSourceDefaults(ctx context.Context, projectID string, spec
 	}
 }
 
+// stripInheritedSourceDefaults 把 git_source 节点上与**项目当前绑定逐字相同**的 repoUrl /
+// branch / credentialId 从 config 里删掉(原地修改 spec)。
+//
+// 为什么要在 Save 侧清:Get() 会用项目绑定预填这三个字段以便画布直接显示源码信息
+// (见 fillSourceDefaults),而前端把整份 spec 深拷贝后原样回传保存,预填值就此落库。
+// 一旦落库,项目之后换仓库 / 换凭据时,节点上那份陈旧拷贝反而盖住项目绑定 —— 执行侧按
+// 「节点非空即覆盖」解析。清掉后,落库的只剩用户真正的覆盖值,留空即跟随项目(语义可预期)。
+//
+// 只清「与项目当前值相同」的字段:用户显式填的**不同**值一律保留。项目信息读不到则整支跳过
+// (与预填同样静默,不猜测、不改写)。
+func (s *service) stripInheritedSourceDefaults(ctx context.Context, projectID string, spec *Spec) {
+	var repoURL, branch, credID string
+	loaded, loadErr := false, error(nil)
+	load := func() {
+		if loaded {
+			return
+		}
+		loaded = true
+		loadErr = s.db.QueryRowContext(ctx,
+			`SELECT repo_url, default_branch, credential_id FROM projects WHERE id = ?`, projectID,
+		).Scan(&repoURL, &branch, &credID)
+	}
+	for i := range spec.Stages {
+		for j := range spec.Stages[i].Jobs {
+			job := &spec.Stages[i].Jobs[j]
+			if job.Type != "git_source" || job.Config == nil {
+				continue
+			}
+			load()
+			if loadErr != nil {
+				return
+			}
+			dropInherited(job.Config, "repoUrl", repoURL)
+			dropInherited(job.Config, "branch", branch)
+			dropInherited(job.Config, "credentialId", credID)
+		}
+	}
+}
+
+// dropInherited 在 cfg[key] 与项目当前值相同(trim 后)时删除该键;项目值为空则不动
+// (节点上本来也只有空,没有可清的继承值)。
+func dropInherited(cfg map[string]any, key, inherited string) {
+	inherited = strings.TrimSpace(inherited)
+	if inherited == "" {
+		return
+	}
+	if v, ok := cfg[key].(string); ok && strings.TrimSpace(v) == inherited {
+		delete(cfg, key)
+	}
+}
+
 func (s *service) Save(ctx context.Context, projectID string, spec Spec) (*Config, error) {
 	// 确保配置已存在(惰性默认);Get 也完成项目存在性校验。
 	if _, err := s.Get(ctx, projectID); err != nil {
@@ -226,6 +277,8 @@ func (s *service) Save(ctx context.Context, projectID string, spec Spec) (*Confi
 	if err != nil {
 		return nil, err
 	}
+	// 清掉 Get() 预填后经前端回传的继承值:节点只落库真正的覆盖。
+	s.stripInheritedSourceDefaults(ctx, projectID, &normalized)
 
 	specJSON, err := json.Marshal(normalized)
 	if err != nil {

@@ -540,15 +540,31 @@ func (b *Builder) revealToken(credID string) string {
 }
 
 func (b *Builder) revealGitAuth(credID string) vault.GitAuth {
-	if credID == "" || b.vault == nil {
-		return vault.GitAuth{}
+	auth, _ := b.revealGitAuthErr(credID)
+	return auth
+}
+
+// revealGitAuthErr 同 revealGitAuth,但把「取不到」的原因透出:调用方据此判断节点上引用的
+// 凭据是否已成悬空引用(被删除 / 换新),进而回落到项目绑定凭据。凭据值仍然只返回明文本身。
+func (b *Builder) revealGitAuthErr(credID string) (vault.GitAuth, error) {
+	if credID == "" {
+		return vault.GitAuth{}, errNoGitCredential
+	}
+	if b.vault == nil {
+		return vault.GitAuth{}, errVaultUnavailable
 	}
 	auth, err := b.vault.GetGitAuth(credID)
 	if err != nil {
-		return vault.GitAuth{}
+		return vault.GitAuth{}, err
 	}
-	return auth
+	return auth, nil
 }
+
+// errNoGitCredential 表示本次克隆没有可用的凭据引用(节点与项目都没绑)→ 按匿名访问公开仓库处理。
+var errNoGitCredential = errors.New("build: no git credential bound")
+
+// errVaultUnavailable 表示保险库未注入(测试 / 未配置保险库)→ 无从取凭据。
+var errVaultUnavailable = errors.New("build: credential vault unavailable")
 
 // revealRegistryCred 取仓库凭据明文并解析为 user/password。凭据约定以 "user:password" 存储;
 // 无冒号时整串作为口令、user 空(匿名/token 场景由调用方处理)。失败返回空。
