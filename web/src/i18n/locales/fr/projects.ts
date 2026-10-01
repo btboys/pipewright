@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: 'Déclencher une exécution manuellement · {name}',
   actionRunAria: 'Déclencher manuellement une exécution de pipeline pour le projet {name}',
-  actionRenameTitle: 'Renommer {name}',
-  actionRenameAria: 'Renommer le projet {name}',
+  actionEditTitle: 'Modifier {name}',
+  actionEditAria: 'Modifier le projet {name}',
   actionCodeTitle: 'Parcourir le code · {name}',
   actionCodeAria: 'Parcourir le code du projet {name}',
   actionPipelineTitle: 'Configuration du pipeline · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: 'Création…',
   createSubmit: 'Créer le projet',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: 'Renommer le projet',
-  renameSub: 'Modifier le nom affiché du projet',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: 'Modifier le projet · {name}',
+  editTitle: 'Modifier le projet',
+  editSub: 'Modifier le nom, la branche par défaut et l’identifiant du dépôt',
+  editRepoLocked: 'L’URL du dépôt ne peut pas être modifiée après création ; créez un nouveau projet pour changer de dépôt.',
+  editBranchHint: '(facultatif ; vide = aucune branche par défaut)',
+  editCredHint: '(identifiants Git uniquement, jamais en clair ; une modification relance le test de connexion)',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: 'Confirmer la suppression du projet',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: 'Échec de la création ({status})',
   createErrRetry: 'Échec de la création, veuillez réessayer plus tard.',
 
-  renameErrStatus: 'Échec du renommage ({status})',
-  renameErrRetry: 'Échec du renommage, veuillez réessayer plus tard.',
+  editErrCredField: 'Erreur d’identifiant : cet identifiant ne peut pas accéder au dépôt',
+  editErrCredBanner: 'Échec de la vérification de l’identifiant. Choisissez-en un autre ou mettez-le à jour dans le coffre.',
+  editErrRepoBanner: 'Dépôt injoignable : vérifiez que l’URL est toujours accessible.',
+  editErrVault: 'Aucune master key n’est configurée dans le coffre, impossible de vérifier l’identifiant.',
+  editErrStatus: 'Échec de l’enregistrement ({status})',
+  editErrRetry: 'Échec de l’enregistrement. Réessayez plus tard.',
 
   deleteErrStatus: 'Échec de la suppression ({status})',
   deleteErrRetry: 'Échec de la suppression, veuillez réessayer plus tard.',

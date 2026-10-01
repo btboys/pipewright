@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: '手动触发运行 · {name}',
   actionRunAria: '手动触发项目 {name} 的流水线运行',
-  actionRenameTitle: '重命名 {name}',
-  actionRenameAria: '重命名项目 {name}',
+  actionEditTitle: '编辑 {name}',
+  actionEditAria: '编辑项目 {name}',
   actionCodeTitle: '代码浏览 · {name}',
   actionCodeAria: '浏览项目 {name} 的代码',
   actionPipelineTitle: '流水线配置 · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: '创建中…',
   createSubmit: '创建项目',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: '重命名项目',
-  renameSub: '修改项目的显示名称',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: '编辑项目 · {name}',
+  editTitle: '编辑项目',
+  editSub: '修改项目名称、默认分支与仓库凭据',
+  editRepoLocked: '仓库地址创建后不可修改;如需更换仓库,请新建项目。',
+  editBranchHint: '（可选,留空表示不指定默认分支）',
+  editCredHint: '（仅显示 Git 凭据,不含明文;更换后会重做连通性校验）',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: '确认删除项目',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: '创建失败({status})',
   createErrRetry: '创建失败,请稍后重试。',
 
-  renameErrStatus: '重命名失败({status})',
-  renameErrRetry: '重命名失败,请稍后重试。',
+  editErrCredField: '凭据错误:该凭据无法访问此仓库',
+  editErrCredBanner: '凭据校验失败,请更换凭据或前往凭据保险库更新。',
+  editErrRepoBanner: '仓库不可达:请确认仓库地址仍可访问。',
+  editErrVault: '保险库未配置 master key,无法校验凭据。',
+  editErrStatus: '保存失败({status})',
+  editErrRetry: '保存失败,请稍后重试。',
 
   deleteErrStatus: '删除失败({status})',
   deleteErrRetry: '删除失败,请稍后重试。',
