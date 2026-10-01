@@ -186,8 +186,13 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 			workspace = ws
 			defer func() { _ = os.RemoveAll(workspace) }() // 宿主零污染
 
-			auth := b.revealGitAuth(proj.CredentialID)
-			resolved, cerr := b.cloner.Clone(ctx, proj.RepoURL, auth.Username, auth.Token, r.Trigger.Branch, r.Trigger.Commit, workspace)
+			// 源码坐标取本阶段 git_source 节点的显式覆盖(仓库/分支/凭据),空则回落项目绑定与触发分支。
+			src := resolveStageSource(stage, proj, r)
+			auth, fellBack := b.stageGitAuth(src, proj)
+			if fellBack {
+				_ = rep.Log(ctx, streamStdout, "· 节点绑定的凭据已不可用,本次克隆回落到项目绑定凭据")
+			}
+			resolved, cerr := b.cloner.Clone(ctx, src.RepoURL, auth.Username, auth.Token, src.Branch, r.Trigger.Commit, workspace)
 			auth = vault.GitAuth{}
 			if cerr != nil {
 				if errors.Is(ctx.Err(), context.Canceled) {
@@ -258,13 +263,15 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 						step.Resource.Network = svcNetwork
 					}
 					// 构建依赖缓存(#61):执行前恢复(暖构建)、成功后保存(best-effort,缓存问题绝不让构建失败)。
+					// 缓存键用**实际检出的分支**(git_source 节点可钉分支),避免与触发分支的缓存串用。
 					// 任务级 timeout/retry(#63):零值时 runScriptStepWithOpts 退化为单次无超时执行(旧行为)。
-					b.restoreJobCache(ctx, jrep, jb, r.Trigger.Branch, workspace)
+					jobBranch := resolveStageSource(stage, proj, r).Branch
+					b.restoreJobCache(ctx, jrep, jb, jobBranch, workspace)
 					if err := b.runScriptStepWithOpts(ctx, jsink, 0, step, workspace); err != nil {
 						_ = rep.JobDone(ctx, jb.ID, run.StepFailed)
 						return err // ErrBuildFailed / run.ErrCanceled
 					}
-					b.saveJobCache(ctx, jrep, jb, r.Trigger.Branch, workspace)
+					b.saveJobCache(ctx, jrep, jb, jobBranch, workspace)
 					// 捕获本 job 写入 $PIPEWRIGHT_ENV 的变量,供后续同阶段 job 引用。
 					carriedEnv = append(carriedEnv, captureStageEnv(ctx, jrep, workspace)...)
 					_ = rep.JobDone(ctx, jb.ID, run.StepSuccess)
@@ -492,8 +499,9 @@ func (b *Builder) runStageJobsDAG(
 }
 
 // cloneJobWorkspace 为单个 job 克隆一份独立的临时工作区(并发安全),并恢复本 run 已归档的上游产物。
+// 源码坐标经 resolveStageSource 解析:本阶段 git_source 节点上的仓库/分支/凭据覆盖优先。
 // 返回 (workspace, commitTag, cleanup, err);调用方务必在用完后调用 cleanup()。失败时已自行清理。
-func (b *Builder) cloneJobWorkspace(ctx context.Context, r *run.Run, proj *project.Project, rep dagrun.StageReporter) (string, string, func(), error) {
+func (b *Builder) cloneJobWorkspace(ctx context.Context, r *run.Run, stage pipeline.Stage, proj *project.Project, rep dagrun.StageReporter) (string, string, func(), error) {
 	ws, mkErr := mkTempWorkspace()
 	if mkErr != nil {
 		_ = rep.Log(ctx, streamStderr, "创建临时工作区失败:"+mkErr.Error())
@@ -501,8 +509,12 @@ func (b *Builder) cloneJobWorkspace(ctx context.Context, r *run.Run, proj *proje
 	}
 	cleanup := func() { _ = os.RemoveAll(ws) }
 
-	auth := b.revealGitAuth(proj.CredentialID)
-	resolved, cerr := b.cloner.Clone(ctx, proj.RepoURL, auth.Username, auth.Token, r.Trigger.Branch, r.Trigger.Commit, ws)
+	src := resolveStageSource(stage, proj, r)
+	auth, fellBack := b.stageGitAuth(src, proj)
+	if fellBack {
+		_ = rep.Log(ctx, streamStdout, "· 节点绑定的凭据已不可用,本次克隆回落到项目绑定凭据")
+	}
+	resolved, cerr := b.cloner.Clone(ctx, src.RepoURL, auth.Username, auth.Token, src.Branch, r.Trigger.Commit, ws)
 	auth = vault.GitAuth{}
 	if cerr != nil {
 		cleanup()
@@ -540,7 +552,9 @@ func (b *Builder) runScriptJobIsolated(
 	upstreamEnv []pipeline.BuildVar,
 	reportSink TestReportSink,
 ) ([]pipeline.BuildVar, error) {
-	ws, _, cleanup, err := b.cloneJobWorkspace(ctx, r, proj, rep)
+	// 工作区克隆与缓存键都依「本阶段实际源码坐标」:节点覆盖优先,空则回落项目绑定与触发分支。
+	src := resolveStageSource(stage, proj, r)
+	ws, _, cleanup, err := b.cloneJobWorkspace(ctx, r, stage, proj, rep)
 	if err != nil {
 		return nil, err
 	}
@@ -563,11 +577,11 @@ func (b *Builder) runScriptJobIsolated(
 	if svcNetwork != "" {
 		step.Resource.Network = svcNetwork
 	}
-	b.restoreJobCache(ctx, rep, jb, r.Trigger.Branch, ws)
+	b.restoreJobCache(ctx, rep, jb, src.Branch, ws)
 	if err := b.runScriptStepWithOpts(ctx, sink, 0, step, ws); err != nil {
 		return nil, err // ErrBuildFailed / run.ErrCanceled
 	}
-	b.saveJobCache(ctx, rep, jb, r.Trigger.Branch, ws)
+	b.saveJobCache(ctx, rep, jb, src.Branch, ws)
 	out := captureStageEnv(ctx, rep, ws)
 	b.collectScriptArtifacts(ctx, []pipeline.Job{jb}, ws, slugify(proj.Name), stage.Name, rep)
 	if rerr := collectStageReport(ctx, reportSink, r, stage, ws, rep); rerr != nil {
@@ -589,7 +603,7 @@ func (b *Builder) runBuildImageJobIsolated(
 	settings *pipeline.Settings,
 	hasPushJob bool,
 ) error {
-	ws, commitTag, cleanup, err := b.cloneJobWorkspace(ctx, r, proj, rep)
+	ws, commitTag, cleanup, err := b.cloneJobWorkspace(ctx, r, stage, proj, rep)
 	if err != nil {
 		return err
 	}

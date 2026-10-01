@@ -115,8 +115,13 @@ func (b *Builder) runRemoteScriptJobs(ctx context.Context, r *run.Run, stage pip
 	}
 	defer func() { _ = os.RemoveAll(workspace) }()
 
-	auth := b.revealGitAuth(proj.CredentialID)
-	resolved, cerr := b.cloner.Clone(ctx, proj.RepoURL, auth.Username, auth.Token, r.Trigger.Branch, r.Trigger.Commit, workspace)
+	// 源码坐标取本阶段 git_source 节点的显式覆盖(仓库/分支/凭据),空则回落项目绑定与触发分支。
+	src := resolveStageSource(stage, proj, r)
+	auth, fellBack := b.stageGitAuth(src, proj)
+	if fellBack {
+		_ = rep.Log(ctx, streamStdout, "· 节点绑定的凭据已不可用,本次克隆回落到项目绑定凭据")
+	}
+	resolved, cerr := b.cloner.Clone(ctx, src.RepoURL, auth.Username, auth.Token, src.Branch, r.Trigger.Commit, workspace)
 	auth = vault.GitAuth{}
 	if cerr != nil {
 		if errors.Is(ctx.Err(), context.Canceled) {
