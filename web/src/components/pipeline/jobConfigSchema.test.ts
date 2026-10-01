@@ -78,10 +78,21 @@ describe('jobConfigSchema', () => {
           )
         }
         if (f.kind === 'credential') {
-          expect(typeof f.credentialType === 'string' || f.credentialType === undefined).toBe(true)
+          expect(
+            f.credentialTypes === undefined || (Array.isArray(f.credentialTypes) && f.credentialTypes.length > 0),
+            `${spec.type}.${f.key} needs a non-empty credentialTypes list`,
+          ).toBe(true)
         }
       }
     }
+  })
+
+  // 回归:拉源码节点曾把候选限死 git_token,导致保险库里的「Git HTTPS(账号密码/PAT)」
+  // 凭据在节点里根本选不到(用户只能看到 Git 令牌那一类)。
+  it('git_source credential picker offers both Git token and Git HTTPS credentials', () => {
+    const field = JOB_TYPE_SPECS.git_source.fields.find((f) => f.key === 'credentialId')
+    expect(field?.kind).toBe('credential')
+    expect(field?.credentialTypes).toEqual(['git_token', 'git_http'])
   })
 
   describe('build_image conditional fields', () => {

@@ -57,8 +57,8 @@ export interface JobField {
   hint?: string
   /** Options for `select` */
   options?: SelectOption[]
-  /** Restrict the credential picker to one credential type */
-  credentialType?: CredentialType
+  /** Restrict the credential picker to these credential types (未声明 = 全部类型) */
+  credentialTypes?: CredentialType[]
   /** Render with monospace font (paths, commands, image refs) */
   monospace?: boolean
   /** Conditional visibility based on the current config values (+ 产物类型上下文,见 FieldContext) */
@@ -356,7 +356,8 @@ export const JOB_TYPE_SPECS: Record<string, JobTypeSpec> = {
         key: 'credentialId',
         get label() { return t('pipelineJob.fieldCredentialIdLabel') },
         kind: 'credential',
-        credentialType: 'git_token',
+        // 拉源码既可用「Git 令牌」也可用「Git HTTPS(账号密码 / PAT)」,见 vault.TypeGitToken/TypeGitHTTP。
+        credentialTypes: ['git_token', 'git_http'],
         get hint() { return t('pipelineJob.fieldCredentialIdHint') },
       },
       {
@@ -461,7 +462,7 @@ export const JOB_TYPE_SPECS: Record<string, JobTypeSpec> = {
         key: 'credentialId',
         get label() { return t('pipelineJob.fieldRegistryCredentialLabel') },
         kind: 'credential',
-        credentialType: 'registry',
+        credentialTypes: ['registry'],
         get hint() { return t('pipelineJob.fieldRegistryCredentialHint') },
       },
     ],

@@ -70,7 +70,7 @@ export default {
   fieldBranchLabel: 'ブランチ / Ref',
   fieldBranchHint: '空 = トリガー時のブランチまたはプロジェクトのデフォルトブランチを使用',
   fieldCredentialIdLabel: 'アクセス認証情報',
-  fieldCredentialIdHint: 'プライベートリポジトリは Git トークン認証情報の参照が必要',
+  fieldCredentialIdHint: 'プライベートリポジトリは Git 認証情報(トークンまたは HTTPS アカウント)の参照が必要',
   fieldDepthLabel: 'クローン深度',
   fieldDepthHint: '浅いクローンの深度。空 = 完全な履歴',
 

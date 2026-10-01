@@ -227,8 +227,9 @@ hydrate(props.job)
 
 function credentialOptions(field: JobField): Credential[] {
   const all = props.credentials ?? []
-  if (!field.credentialType) return all
-  return all.filter((c) => c.type === field.credentialType)
+  const types = field.credentialTypes
+  if (!types || types.length === 0) return all
+  return all.filter((c) => types.includes(c.type))
 }
 
 const CHANNEL_TYPE_LABELS: Record<string, string> = {
