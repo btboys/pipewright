@@ -137,5 +137,8 @@ release:
 
     Docker:
     ```sh
-    docker run -d -p 8080:8080 -v pipewright-data:/data ghcr.io/btboys/pipewright:{{ .Tag }}
+    docker run -d -p 8080:8080 -v pipewright-data:/data ghcr.io/btboys/pipewright:{{ .Version }}
     ```
+
+    > 镜像 tag **不带 `v` 前缀**(`{{ .Version }}` / `latest`),与 git tag `{{ .Tag }}` 不同 ——
+    > 上面这条是可直接复制的正确形态;`ghcr.io/btboys/pipewright:{{ .Tag }}` 不存在。
