@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/btboys/pipewright/internal/pipeline"
@@ -253,5 +254,83 @@ func TestCloneJobWorkspaceUsesStageSource(t *testing.T) {
 				t.Errorf("commit = %q, want c0ffee", cl.commit)
 			}
 		})
+	}
+}
+
+// ─── 源阶段步骤日志报「实际生效的坐标」 ────────────────────────────────────────────
+
+// 源阶段(只有 git_source 节点)走占位放行,日志里报的应该是**实际生效**的仓库/分支/凭据:
+// 节点字段留空(或被清掉继承值)时来自项目绑定,否则来自节点。否则日志会随落库形态变化而
+// 丢失仓库信息,用户看不出这次到底克隆了什么。
+func TestSourceStageLogReportsEffectiveSource(t *testing.T) {
+	proj := &project.Project{ID: "p1", RepoURL: "https://example.com/project.git", CredentialID: "cred-project"}
+	cases := []struct {
+		name        string
+		job         pipeline.Job
+		wantRepo    string
+		wantBranch  string
+		wantCredTag bool
+	}{
+		{
+			name:        "节点留空 → 报项目绑定",
+			job:         gitSourceJob("", "", ""),
+			wantRepo:    "https://example.com/project.git",
+			wantBranch:  "main",
+			wantCredTag: true,
+		},
+		{
+			name:        "节点覆盖 → 报节点值",
+			job:         gitSourceJob("https://codeup.aliyun.com/fxy/app.git", "release", "cred-node"),
+			wantRepo:    "https://codeup.aliyun.com/fxy/app.git",
+			wantBranch:  "release",
+			wantCredTag: true,
+		},
+		{
+			name:        "项目未绑凭据 → 不打「凭据:已绑定」",
+			job:         gitSourceJob("", "", ""),
+			wantRepo:    "https://example.com/project.git",
+			wantBranch:  "main",
+			wantCredTag: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := *proj
+			if !c.wantCredTag {
+				p.CredentialID = ""
+			}
+			b := &Builder{projects: fakeProjects{proj: &p}}
+			rep := &fakeReporter{}
+			// 触发分支为 main,节点不钉分支时日志应报 main(与项目默认分支一致,不出歧义)。
+			r := &run.Run{ID: "r1", ProjectID: "p1", Trigger: run.Trigger{Branch: "main"}}
+			if err := NewStageExecutor(b, nil)(context.Background(), r, stageOf(c.job), rep); err != nil {
+				t.Fatalf("exec: %v", err)
+			}
+			joined := strings.Join(rep.logs, "\n")
+			if !strings.Contains(joined, "· 源码仓库:"+c.wantRepo) {
+				t.Errorf("日志未报实际仓库 %q:\n%s", c.wantRepo, joined)
+			}
+			if !strings.Contains(joined, "· 分支:"+c.wantBranch) {
+				t.Errorf("日志未报实际分支 %q:\n%s", c.wantBranch, joined)
+			}
+			if got := strings.Contains(joined, "· 凭据:已绑定"); got != c.wantCredTag {
+				t.Errorf("凭据标注 = %v, want %v:\n%s", got, c.wantCredTag, joined)
+			}
+		})
+	}
+}
+
+// 项目读不到(未注入 / 已删)时日志退回节点值,绝不因日志取数失败而中断本阶段。
+func TestSourceStageLogSurvivesMissingProject(t *testing.T) {
+	b := &Builder{}
+	rep := &fakeReporter{}
+	job := gitSourceJob("https://codeup.aliyun.com/fxy/app.git", "release", "")
+	r := &run.Run{ID: "r1", ProjectID: "p1", Trigger: run.Trigger{Branch: "main"}}
+	if err := NewStageExecutor(b, nil)(context.Background(), r, stageOf(job), rep); err != nil {
+		t.Fatalf("exec: %v", err)
+	}
+	if !strings.Contains(strings.Join(rep.logs, "\n"), "· 源码仓库:https://codeup.aliyun.com/fxy/app.git") {
+		t.Errorf("日志丢了节点上的仓库地址:\n%s", strings.Join(rep.logs, "\n"))
 	}
 }

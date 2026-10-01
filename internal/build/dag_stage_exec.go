@@ -129,11 +129,14 @@ func NewStageExecutor(b *Builder, reportSink TestReportSink) dagrun.StageExecuto
 		needsBuild := len(scriptJobs) > 0 || len(buildImageJobs) > 0
 		// 没有任何可执行节点(script/build_image/deploy_ssh/ssh_exec/notify)且无 post → 诚实占位放行。
 		if !needsBuild && len(deployJobs) == 0 && len(sshExecJobs) == 0 && len(notifyJobs) == 0 && len(stage.Post) == 0 {
+			// 尽本阶段全力取一次项目绑定:日志要报「实际生效的源码坐标」,而不仅节点上显式写的
+			// (节点字段留空 / 已被清掉继承值时,仓库与凭据都来自项目绑定)。取不到就按节点值报。
+			placeholderProj := b.stageProject(ctx, r)
 			for _, jb := range stage.Jobs {
 				_ = rep.JobRunning(ctx, jb.ID)
 				jr := rep.JobReporter(jb.ID)
 				if strings.TrimSpace(jb.Type) == "git_source" {
-					for _, line := range gitSourceLogLines(jb, r) {
+					for _, line := range gitSourceLogLines(resolveStageSource(stage, placeholderProj, r), r.Trigger.Commit) {
 						_ = jr.Log(ctx, streamStdout, line)
 					}
 				} else {
@@ -1060,17 +1063,16 @@ func cfgString(cfg map[string]any, key string) string {
 
 // gitSourceLogLines 为 git_source 节点拼出可读的源码信息(仓库 / 分支 / 提交 / 凭据)。
 // 注:git_source 是 go-git 库克隆(非 shell 命令),真实检出发生在构建阶段各 job 工作区,
-// 此处展示「本阶段引用的源」让步骤日志不再是空占位。绝不回显凭据值,只标注是否已绑定。
-func gitSourceLogLines(jb pipeline.Job, r *run.Run) []string {
-	repo := cfgString(jb.Config, "repoUrl")
-	branch := cfgString(jb.Config, "branch")
-	if branch == "" {
-		branch = strings.TrimSpace(r.Trigger.Branch)
-	}
+// 此处展示「本阶段实际生效的源」让步骤日志不再是空占位 —— 传 resolved src 而不是节点 config,
+// 因为节点字段留空(或继承值已被清掉)时仓库/分支/凭据都来自项目绑定与触发分支。
+// 绝不回显凭据值,只标注是否已绑定。
+func gitSourceLogLines(src stageSource, commit string) []string {
+	repo := src.RepoURL
+	branch := src.Branch
 	if branch == "" {
 		branch = "(默认分支)"
 	}
-	commit := strings.TrimSpace(r.Trigger.Commit)
+	commit = strings.TrimSpace(commit)
 	lines := []string{}
 	if repo != "" {
 		lines = append(lines, "· 源码仓库:"+repo)
@@ -1085,13 +1087,10 @@ func gitSourceLogLines(jb pipeline.Job, r *run.Run) []string {
 		branchLine += "   · 提交:构建阶段克隆时解析 HEAD"
 	}
 	lines = append(lines, branchLine)
-	if cfgString(jb.Config, "credentialId") != "" {
+	if src.CredentialID != "" {
 		lines = append(lines, "· 凭据:已绑定(经保险库,绝不回显)")
 	}
 	lines = append(lines, "· 实际克隆在构建阶段各 job 工作区执行(go-git 浅克隆)")
-	if len(lines) == 0 {
-		lines = append(lines, fmt.Sprintf("· %s(git_source)", jb.Name))
-	}
 	return lines
 }
 

@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -55,6 +56,20 @@ func resolveStageSource(stage pipeline.Stage, proj *project.Project, r *run.Run)
 		break
 	}
 	return src
+}
+
+// stageProject 尽力取本 run 的项目绑定(仅供解析源码坐标与步骤日志用)。
+// 取不到(projects 未注入 / 项目已删 / 读库失败)返回 nil,由调用方按「只有节点值」处理 ——
+// 日志与坐标解析都不该因为读项目失败而中断本阶段执行。
+func (b *Builder) stageProject(ctx context.Context, r *run.Run) *project.Project {
+	if b.projects == nil || r == nil || strings.TrimSpace(r.ProjectID) == "" {
+		return nil
+	}
+	proj, err := b.projects.Get(ctx, r.ProjectID)
+	if err != nil {
+		return nil
+	}
+	return proj
 }
 
 // stageGitAuth 解析本阶段实际送进克隆的 Git 凭据,返回 (凭据, 是否回落到项目绑定凭据):
