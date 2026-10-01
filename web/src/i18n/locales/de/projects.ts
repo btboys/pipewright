@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: 'Ausführung manuell auslösen · {name}',
   actionRunAria: 'Pipeline-Ausführung für Projekt {name} manuell auslösen',
-  actionRenameTitle: '{name} umbenennen',
-  actionRenameAria: 'Projekt {name} umbenennen',
+  actionEditTitle: '{name} bearbeiten',
+  actionEditAria: 'Projekt {name} bearbeiten',
   actionCodeTitle: 'Code durchsuchen · {name}',
   actionCodeAria: 'Code des Projekts {name} durchsuchen',
   actionPipelineTitle: 'Pipeline-Konfiguration · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: 'Wird erstellt…',
   createSubmit: 'Projekt erstellen',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: 'Projekt umbenennen',
-  renameSub: 'Den Anzeigenamen des Projekts ändern',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: 'Projekt bearbeiten · {name}',
+  editTitle: 'Projekt bearbeiten',
+  editSub: 'Projektname, Standardbranch und Repository-Anmeldedaten ändern',
+  editRepoLocked: 'Die Repository-URL lässt sich nach dem Anlegen nicht ändern; für ein anderes Repository bitte ein neues Projekt erstellen.',
+  editBranchHint: '(optional; leer = kein Standardbranch)',
+  editCredHint: '(nur Git-Anmeldedaten, nie Klartext; eine Änderung wiederholt die Verbindungsprüfung)',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: 'Löschen des Projekts bestätigen',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: 'Erstellung fehlgeschlagen ({status})',
   createErrRetry: 'Erstellung fehlgeschlagen, bitte später erneut versuchen.',
 
-  renameErrStatus: 'Umbenennen fehlgeschlagen ({status})',
-  renameErrRetry: 'Umbenennen fehlgeschlagen, bitte später erneut versuchen.',
+  editErrCredField: 'Anmeldedaten-Fehler: Diese Anmeldedaten haben keinen Zugriff auf das Repository',
+  editErrCredBanner: 'Prüfung der Anmeldedaten fehlgeschlagen. Andere Anmeldedaten wählen oder im Tresor aktualisieren.',
+  editErrRepoBanner: 'Repository nicht erreichbar: URL auf Erreichbarkeit prüfen.',
+  editErrVault: 'Im Tresor ist kein Master-Key konfiguriert, die Anmeldedaten lassen sich nicht prüfen.',
+  editErrStatus: 'Speichern fehlgeschlagen ({status})',
+  editErrRetry: 'Speichern fehlgeschlagen. Bitte später erneut versuchen.',
 
   deleteErrStatus: 'Löschen fehlgeschlagen ({status})',
   deleteErrRetry: 'Löschen fehlgeschlagen, bitte später erneut versuchen.',

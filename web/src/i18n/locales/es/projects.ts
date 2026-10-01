@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: 'Disparar ejecución manualmente · {name}',
   actionRunAria: 'Disparar manualmente una ejecución de pipeline del proyecto {name}',
-  actionRenameTitle: 'Renombrar {name}',
-  actionRenameAria: 'Renombrar el proyecto {name}',
+  actionEditTitle: 'Editar {name}',
+  actionEditAria: 'Editar el proyecto {name}',
   actionCodeTitle: 'Explorar código · {name}',
   actionCodeAria: 'Explorar el código del proyecto {name}',
   actionPipelineTitle: 'Configuración del pipeline · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: 'Creando…',
   createSubmit: 'Crear proyecto',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: 'Renombrar proyecto',
-  renameSub: 'Cambia el nombre visible del proyecto',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: 'Editar proyecto · {name}',
+  editTitle: 'Editar proyecto',
+  editSub: 'Cambia el nombre, la rama predeterminada y la credencial del repositorio',
+  editRepoLocked: 'La URL del repositorio no se puede cambiar tras crearlo; para cambiar de repositorio, crea un proyecto nuevo.',
+  editBranchHint: '(opcional; vacío = sin rama predeterminada)',
+  editCredHint: '(solo credenciales Git, nunca en claro; al cambiarla se repite la comprobación de conexión)',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: 'Confirmar eliminación del proyecto',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: 'La creación falló ({status})',
   createErrRetry: 'La creación falló, inténtalo de nuevo más tarde.',
 
-  renameErrStatus: 'El cambio de nombre falló ({status})',
-  renameErrRetry: 'El cambio de nombre falló, inténtalo de nuevo más tarde.',
+  editErrCredField: 'Error de credencial: esta credencial no puede acceder al repositorio',
+  editErrCredBanner: 'Falló la comprobación de la credencial. Elige otra o actualízala en la bóveda.',
+  editErrRepoBanner: 'Repositorio inaccesible: comprueba que la URL siga siendo accesible.',
+  editErrVault: 'La bóveda no tiene master key configurada, no se puede comprobar la credencial.',
+  editErrStatus: 'Error al guardar ({status})',
+  editErrRetry: 'Error al guardar. Inténtalo de nuevo más tarde.',
 
   deleteErrStatus: 'La eliminación falló ({status})',
   deleteErrRetry: 'La eliminación falló, inténtalo de nuevo más tarde.',

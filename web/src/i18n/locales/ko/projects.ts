@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: '수동으로 실행 트리거 · {name}',
   actionRunAria: '프로젝트 {name}의 파이프라인 실행을 수동으로 트리거',
-  actionRenameTitle: '{name} 이름 변경',
-  actionRenameAria: '프로젝트 {name} 이름 변경',
+  actionEditTitle: '{name} 편집',
+  actionEditAria: '프로젝트 {name} 편집',
   actionCodeTitle: '코드 보기 · {name}',
   actionCodeAria: '프로젝트 {name}의 코드 보기',
   actionPipelineTitle: '파이프라인 설정 · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: '생성 중…',
   createSubmit: '프로젝트 생성',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: '프로젝트 이름 변경',
-  renameSub: '프로젝트의 표시 이름을 변경합니다',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: '프로젝트 편집 · {name}',
+  editTitle: '프로젝트 편집',
+  editSub: '프로젝트 이름, 기본 브랜치, 저장소 자격 증명을 변경합니다',
+  editRepoLocked: '저장소 주소는 생성 후 변경할 수 없습니다. 다른 저장소로 바꾸려면 새 프로젝트를 만드세요.',
+  editBranchHint: '(선택, 비워 두면 기본 브랜치를 지정하지 않음)',
+  editCredHint: '(Git 자격 증명만 표시, 평문 없음; 변경하면 연결 검사를 다시 수행합니다)',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: '프로젝트 삭제 확인',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: '생성에 실패했습니다({status})',
   createErrRetry: '생성에 실패했습니다. 잠시 후 다시 시도하세요.',
 
-  renameErrStatus: '이름 변경에 실패했습니다({status})',
-  renameErrRetry: '이름 변경에 실패했습니다. 잠시 후 다시 시도하세요.',
+  editErrCredField: '자격 증명 오류: 이 자격 증명으로는 저장소에 접근할 수 없습니다',
+  editErrCredBanner: '자격 증명 검사에 실패했습니다. 다른 자격 증명을 선택하거나 보관소에서 갱신하세요.',
+  editErrRepoBanner: '저장소에 연결할 수 없습니다. 주소가 여전히 접근 가능한지 확인하세요.',
+  editErrVault: '보관소에 master key가 없어 자격 증명을 검사할 수 없습니다.',
+  editErrStatus: '저장 실패({status})',
+  editErrRetry: '저장 실패. 잠시 후 다시 시도하세요.',
 
   deleteErrStatus: '삭제에 실패했습니다({status})',
   deleteErrRetry: '삭제에 실패했습니다. 잠시 후 다시 시도하세요.',

@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: '手動で実行をトリガー · {name}',
   actionRunAria: 'プロジェクト {name} のパイプライン実行を手動でトリガー',
-  actionRenameTitle: '{name} の名前を変更',
-  actionRenameAria: 'プロジェクト {name} の名前を変更',
+  actionEditTitle: '{name} を編集',
+  actionEditAria: 'プロジェクト {name} を編集',
   actionCodeTitle: 'コードを閲覧 · {name}',
   actionCodeAria: 'プロジェクト {name} のコードを閲覧',
   actionPipelineTitle: 'パイプライン設定 · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: '作成中…',
   createSubmit: 'プロジェクトを作成',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: 'プロジェクトの名前を変更',
-  renameSub: 'プロジェクトの表示名を変更します',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: 'プロジェクトを編集 · {name}',
+  editTitle: 'プロジェクトを編集',
+  editSub: 'プロジェクト名・デフォルトブランチ・リポジトリ認証情報を変更します',
+  editRepoLocked: 'リポジトリ URL は作成後に変更できません。別のリポジトリに切り替える場合は新規プロジェクトを作成してください。',
+  editBranchHint: '（任意。空欄の場合はデフォルトブランチを指定しません）',
+  editCredHint: '（Git 認証情報のみ表示、平文は含みません。変更すると接続確認をやり直します）',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: 'プロジェクト削除の確認',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: '作成に失敗しました（{status}）',
   createErrRetry: '作成に失敗しました。しばらくしてから再試行してください。',
 
-  renameErrStatus: '名前の変更に失敗しました（{status}）',
-  renameErrRetry: '名前の変更に失敗しました。しばらくしてから再試行してください。',
+  editErrCredField: '認証情報エラー：この認証情報ではリポジトリにアクセスできません',
+  editErrCredBanner: '認証情報の確認に失敗しました。別の認証情報を選ぶか、保険庫で更新してください。',
+  editErrRepoBanner: 'リポジトリに到達できません。URL が引き続きアクセス可能か確認してください。',
+  editErrVault: '保険庫に master key が設定されていないため、認証情報を確認できません。',
+  editErrStatus: '保存に失敗しました（{status}）',
+  editErrRetry: '保存に失敗しました。しばらくしてから再試行してください。',
 
   deleteErrStatus: '削除に失敗しました（{status}）',
   deleteErrRetry: '削除に失敗しました。しばらくしてから再試行してください。',

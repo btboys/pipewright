@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: '手動觸發執行 · {name}',
   actionRunAria: '手動觸發專案 {name} 的流水線執行',
-  actionRenameTitle: '重新命名 {name}',
-  actionRenameAria: '重新命名專案 {name}',
+  actionEditTitle: '編輯 {name}',
+  actionEditAria: '編輯專案 {name}',
   actionCodeTitle: '程式碼瀏覽 · {name}',
   actionCodeAria: '瀏覽專案 {name} 的程式碼',
   actionPipelineTitle: '流水線設定 · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: '建立中…',
   createSubmit: '建立專案',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: '重新命名專案',
-  renameSub: '修改專案的顯示名稱',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: '編輯專案 · {name}',
+  editTitle: '編輯專案',
+  editSub: '修改專案名稱、預設分支與倉庫憑證',
+  editRepoLocked: '倉庫位址建立後不可修改;如需更換倉庫,請新建專案。',
+  editBranchHint: '（可選,留空表示不指定預設分支）',
+  editCredHint: '（僅顯示 Git 憑證,不含明文;更換後會重做連線檢查）',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: '確認刪除專案',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: '建立失敗({status})',
   createErrRetry: '建立失敗,請稍後重試。',
 
-  renameErrStatus: '重新命名失敗({status})',
-  renameErrRetry: '重新命名失敗,請稍後重試。',
+  editErrCredField: '憑證錯誤:該憑證無法存取此倉庫',
+  editErrCredBanner: '憑證檢查失敗,請更換憑證或前往憑證保險庫更新。',
+  editErrRepoBanner: '倉庫不可達:請確認倉庫位址仍可存取。',
+  editErrVault: '保險庫未設定 master key,無法檢查憑證。',
+  editErrStatus: '儲存失敗({status})',
+  editErrRetry: '儲存失敗,請稍後重試。',
 
   deleteErrStatus: '刪除失敗({status})',
   deleteErrRetry: '刪除失敗,請稍後重試。',

@@ -35,8 +35,8 @@ export default {
   // ─── card actions ──────────────────────────────────────────────
   actionRunTitle: 'Trigger run manually · {name}',
   actionRunAria: 'Manually trigger a pipeline run for project {name}',
-  actionRenameTitle: 'Rename {name}',
-  actionRenameAria: 'Rename project {name}',
+  actionEditTitle: 'Edit {name}',
+  actionEditAria: 'Edit project {name}',
   actionCodeTitle: 'Browse code · {name}',
   actionCodeAria: 'Browse code for project {name}',
   actionPipelineTitle: 'Pipeline configuration · {name}',
@@ -102,9 +102,13 @@ export default {
   creating: 'Creating…',
   createSubmit: 'Create project',
 
-  // ─── rename modal ──────────────────────────────────────────────
-  renameTitle: 'Rename project',
-  renameSub: 'Change the display name of the project',
+  // ─── edit modal ──────────────────────────────────────────────
+  editDialogAria: 'Edit project · {name}',
+  editTitle: 'Edit project',
+  editSub: 'Change the project name, default branch and repository credential',
+  editRepoLocked: 'The repository URL cannot be changed after creation; create a new project to switch repositories.',
+  editBranchHint: '(optional; leave blank for no default branch)',
+  editCredHint: '(Git credentials only, never plaintext; changing it re-runs the connectivity check)',
 
   // ─── delete modal ──────────────────────────────────────────────
   deleteDialogAria: 'Confirm project deletion',
@@ -143,8 +147,12 @@ export default {
   createErrStatus: 'Creation failed ({status})',
   createErrRetry: 'Creation failed, please try again later.',
 
-  renameErrStatus: 'Rename failed ({status})',
-  renameErrRetry: 'Rename failed, please try again later.',
+  editErrCredField: 'Credential error: this credential cannot access the repository',
+  editErrCredBanner: 'Credential check failed. Pick another credential or update it in the vault.',
+  editErrRepoBanner: 'Repository unreachable: make sure the repository URL is still accessible.',
+  editErrVault: 'The vault has no master key configured, so the credential cannot be checked.',
+  editErrStatus: 'Save failed ({status})',
+  editErrRetry: 'Save failed. Please try again later.',
 
   deleteErrStatus: 'Delete failed ({status})',
   deleteErrRetry: 'Delete failed, please try again later.',
