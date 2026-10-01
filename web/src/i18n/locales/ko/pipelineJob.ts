@@ -70,7 +70,7 @@ export default {
   fieldBranchLabel: '브랜치 / Ref',
   fieldBranchHint: '비우면 트리거 시 브랜치 또는 프로젝트 기본 브랜치 사용',
   fieldCredentialIdLabel: '접근 자격 증명',
-  fieldCredentialIdHint: '비공개 저장소는 Git 토큰 자격 증명 참조가 필요',
+  fieldCredentialIdHint: '비공개 저장소는 Git 자격 증명(토큰 또는 HTTPS 계정) 참조가 필요',
   fieldDepthLabel: '복제 깊이',
   fieldDepthHint: '얕은 복제 깊이. 비움 = 전체 이력',
 

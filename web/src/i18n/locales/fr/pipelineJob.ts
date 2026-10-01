@@ -70,7 +70,7 @@ export default {
   fieldBranchLabel: 'Branche / Ref',
   fieldBranchHint: 'Vide = utiliser la branche du déclencheur ou la branche par défaut du projet',
   fieldCredentialIdLabel: 'Identifiant d’accès',
-  fieldCredentialIdHint: 'Les dépôts privés nécessitent un identifiant de jeton Git référencé',
+  fieldCredentialIdHint: 'Les dépôts privés nécessitent un identifiant Git référencé (jeton ou compte HTTPS)',
   fieldDepthLabel: 'Profondeur de clonage',
   fieldDepthHint: 'Profondeur du clonage superficiel ; vide = historique complet',
 
