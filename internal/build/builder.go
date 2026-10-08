@@ -263,8 +263,9 @@ func (b *Builder) Run(ctx context.Context, r *run.Run, sink run.StepSink) error 
 		if errors.Is(ctx.Err(), context.Canceled) {
 			return b.cancelAt(ctx, sink, 0)
 		}
-		_ = sink.Log(ctx, streamStderr, 0, "源码克隆失败(鉴权/网络/ref 不存在或被 SSRF 拒绝)")
-		return b.failStep(ctx, sink, 0, "源码克隆失败:"+cerr.Error())
+		detail := cloneFailureDetail(cerr)
+		_ = sink.Log(ctx, streamStderr, 0, CloneFailureText(detail))
+		return b.failStep(ctx, sink, 0, CloneFailureText(detail))
 	}
 	if resolved != nil && resolved.CommitShort != "" && b.recordCommit != nil {
 		b.recordCommit(ctx, r.ID, resolved.CommitShort)
