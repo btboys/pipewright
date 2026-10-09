@@ -67,7 +67,7 @@ func TestNotifyHookEndToEndWebhook(t *testing.T) {
 	runSvc := run.New(st.DB)
 	pool := run.NewWorkerPool(runSvc,
 		run.WithRunner(&branchFailRunner{}),
-		run.WithNotifyHook(NewNotifyHook(runSvc, notifySvc, nil)),
+		run.WithNotifyHook(NewNotifyHook(runSvc, notifySvc, nil, "")),
 	)
 	pool.Start()
 	t.Cleanup(func() { pool.Stop(context.Background()) })
@@ -207,7 +207,7 @@ func TestNotifyHookProjectOverrideEndToEnd(t *testing.T) {
 	runSvc := run.New(st.DB)
 	pool := run.NewWorkerPool(runSvc,
 		run.WithRunner(&branchFailRunner{}),
-		run.WithNotifyHook(NewNotifyHook(runSvc, notifySvc, nil)),
+		run.WithNotifyHook(NewNotifyHook(runSvc, notifySvc, nil, "")),
 	)
 	pool.Start()
 	t.Cleanup(func() { pool.Stop(context.Background()) })
@@ -291,4 +291,125 @@ func waitRunStatusE2E(t *testing.T, svc run.Service, id, want string) *run.Run {
 	}
 	t.Fatalf("run %s 未在期限内到达状态 %s", id, want)
 	return nil
+}
+
+// stageSuccessRunner:声明「部署 / 纷析云部署」一步并成功,驱动终态通知带阶段/任务字段。
+type stageSuccessRunner struct{}
+
+func (stageSuccessRunner) Run(ctx context.Context, r *run.Run, sink run.StepSink) error {
+	_ = sink.Plan(ctx, []run.StepDecl{{Name: "纷析云部署", Stage: "部署"}})
+	_ = sink.StepRunning(ctx, 0)
+	_ = sink.StepDone(ctx, 0, run.StepSuccess)
+	return nil
+}
+
+// TestNotifyHookPipelineCardFieldsEndToEnd 真验:终态通知的 TemplateVars 携带流水线卡片字段
+// (环境/触发类型/阶段/任务/提交说明/运行详情链接),经默认渲染落到 webhook 载荷:
+//   - Fields 含 pipeline / pipelineUrl / actionUrl(=运行详情链接)/ environment / triggerType /
+//     stage / task / commitMessage。
+//   - publicURL 为空时链接字段缺失但仍发送(降级不阻断)。
+func TestNotifyHookPipelineCardFieldsEndToEnd(t *testing.T) {
+	var (
+		mu     sync.Mutex
+		bodies []string
+	)
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		bodies = append(bodies, string(body))
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer hook.Close()
+
+	st, err := store.Open(t.TempDir() + "/e2e-card.db")
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	v := vault.New(st.DB, testMasterKey())
+	notifySvc := notify.New(st.DB, v, hook.Client())
+
+	ch, err := notifySvc.Create(context.Background(), notify.CreateInput{
+		Name:    "card-hook",
+		Type:    notify.TypeWebhook,
+		Enabled: true,
+		Config:  notify.Config{URL: hook.URL},
+	})
+	if err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if _, err := notifySvc.CreateRoute(context.Background(), notify.CreateRouteInput{
+		Event: notify.EventBuildSucceeded, ChannelID: ch.ID, Enabled: true,
+	}); err != nil {
+		t.Fatalf("create route: %v", err)
+	}
+
+	runSvc := run.New(st.DB)
+	pool := run.NewWorkerPool(runSvc,
+		run.WithRunner(&stageSuccessRunner{}),
+		run.WithNotifyHook(NewNotifyHook(runSvc, notifySvc, nil, "https://pw.example.com/")),
+	)
+	pool.Start()
+	t.Cleanup(func() { pool.Stop(context.Background()) })
+
+	projID := "proj-card"
+	credID := "cred-card"
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := st.DB.Exec(
+		`INSERT INTO credentials (id, name, type, scope, ciphertext, masked_value, created_at, updated_at)
+		 VALUES (?, 'c', 'git_token', '', X'00', 'm', ?, ?)`, credID, now, now); err != nil {
+		t.Fatalf("seed credential: %v", err)
+	}
+	if _, err := st.DB.Exec(
+		`INSERT INTO projects (id, name, repo_url, default_branch, credential_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		projID, "财务V5自动构建_saas", "https://example.com/demo.git", "master", credID, now, now); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+
+	rn, err := runSvc.Create(context.Background(), projID, run.Trigger{
+		Type:                run.TriggerSchedule,
+		Branch:              "master",
+		Commit:              "530ecee0123456789",
+		ResolvedEnvironment: "正式环境",
+		CommitMessage:       "chore(agent): 端点生成器改为显式任务并支持仓库级排除清单",
+	})
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	waitRunStatusE2E(t, runSvc, rn.ID, run.StatusSuccess)
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := len(bodies)
+		mu.Unlock()
+		if n >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(bodies) != 1 {
+		t.Fatalf("应恰好收到 1 个 POST,实收 %d: %v", len(bodies), bodies)
+	}
+	got := bodies[0]
+	for _, want := range []string{
+		`"pipeline":"财务V5自动构建_saas"`,
+		`"pipelineUrl":"https://pw.example.com/runs/` + rn.ID + `"`,
+		`"actionUrl":"https://pw.example.com/runs/` + rn.ID + `"`,
+		`"environment":"正式环境"`,
+		`"triggerType":"schedule"`,
+		`"stage":"部署"`,
+		`"task":"纷析云部署"`,
+		`"commitMessage":"chore(agent): 端点生成器改为显式任务并支持仓库级排除清单"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("POST 体应含 %q,得:\n%s", want, got)
+		}
+	}
 }

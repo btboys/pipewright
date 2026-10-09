@@ -182,8 +182,9 @@ func (s *service) sendFeishu(ctx context.Context, ch *Channel, sealed []byte, pa
 }
 
 // feishuFieldOrder 字段在卡片里的展示顺序(业务可读优先,而非字母序);未列出的 key 追加在后、按字母序。
-// actionUrl 不在此列:它单独渲染成底部行动按钮(见 feishuCardFor)。
-var feishuFieldOrder = []string{"project", "branch", "commit", "status", "duration", "event"}
+// actionUrl 不在此列:它单独渲染成底部行动按钮(见 feishuCardFor);pipelineUrl 同(链接已由按钮透出)。
+var feishuFieldOrder = []string{"project", "branch", "commit", "status", "duration", "event",
+	"pipeline", "environment", "actor", "triggerType", "stage", "task", "commitMessage"}
 
 // feishuFieldLabel 字段 key → 中文标签(卡片里展示更友好)。未知 key 原样用 key。
 func feishuFieldLabel(key, lang string) string {
@@ -204,6 +205,20 @@ func feishuFieldLabel(key, lang string) string {
 		return i18n.T(lang, "来源")
 	case "kind":
 		return i18n.T(lang, "类型")
+	case "pipeline":
+		return i18n.T(lang, "流水线")
+	case "environment":
+		return i18n.T(lang, "流水线环境")
+	case "actor":
+		return i18n.T(lang, "执行人")
+	case "triggerType":
+		return i18n.T(lang, "触发信息")
+	case "stage":
+		return i18n.T(lang, "流水线阶段")
+	case "task":
+		return i18n.T(lang, "流水线任务")
+	case "commitMessage":
+		return i18n.T(lang, "提交信息")
 	case fieldActionURL:
 		return i18n.T(lang, "审批链接")
 	default:
@@ -309,10 +324,10 @@ func feishuOrderedFields(fields map[string]string, lang string) []feishuCardFiel
 			seen[k] = true
 		}
 	}
-	// 2. 其余 key 按字母序追加(稳定,避免 map 迭代乱序);actionUrl 单独走按钮,跳过。
+	// 2. 其余 key 按字母序追加(稳定,避免 map 迭代乱序);actionUrl/pipelineUrl 单独走按钮/链接,跳过。
 	rest := make([]string, 0)
 	for k := range fields {
-		if !seen[k] && k != fieldActionURL {
+		if !seen[k] && k != fieldActionURL && k != fieldPipelineURL {
 			rest = append(rest, k)
 		}
 	}
@@ -325,6 +340,10 @@ func feishuOrderedFields(fields map[string]string, lang string) []feishuCardFiel
 		// 状态字段值前置图标,双列里也一眼可读。
 		if k == "status" {
 			value = feishuStatusIcon(value) + " " + value
+		}
+		// 触发类型枚举渲染为本地化人读文案(与企微/钉钉卡片一致)。
+		if k == "triggerType" {
+			value = triggerInfoLabel(value, lang)
 		}
 		out = append(out, feishuCardField{
 			IsShort: true, // 半宽 → 两两并排成双列

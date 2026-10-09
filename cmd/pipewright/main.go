@@ -407,7 +407,8 @@ func main() {
 	// 历史全局开关 PIPEWRIGHT_PR_STATUS=1 保留为**全局强开**:无视每项目开关,对所有项目回写(向后兼容)。
 	// API base 可经 env 覆盖(GitHub/Gitee 企业版自托管;空则用公有云默认),无论是否全局强开均生效。
 	// best-effort:失败仅记日志,不阻断 run 终态。
-	terminalHook := httpapi.NewNotifyHook(runSvc, notifySvc, secretSrc)
+	terminalHook := httpapi.NewNotifyHook(runSvc, notifySvc, secretSrc,
+		strings.TrimSpace(os.Getenv("PIPEWRIGHT_PUBLIC_URL")))
 	prStatusGlobalOverride := strings.EqualFold(strings.TrimSpace(os.Getenv("PIPEWRIGHT_PR_STATUS")), "1")
 	reporter := prstatus.NewReporter(&http.Client{Timeout: 10 * time.Second}).WithBaseURLs(
 		strings.TrimSpace(os.Getenv("PIPEWRIGHT_PR_STATUS_GITHUB_BASE")),

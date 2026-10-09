@@ -87,9 +87,12 @@ type RunCreator interface {
 
 // RunRequest 是创建一次运行的入参(去耦 run 包类型,避免在领域层互相引用)。
 type RunRequest struct {
-	Branch                  string
-	Commit                  string
-	Actor                   string
+	Branch string
+	Commit string
+	Actor  string
+	// CommitMessage 是触发提交的说明信息首行(push 事件 commits[].message / head_commit.message),
+	// 仅供通知展示;拿不到时为空。
+	CommitMessage           string
 	ResolvedEnvironment     string
 	ResolvedTargetServerIDs []string
 }
@@ -284,6 +287,7 @@ func (rc *Receiver) Handle(ctx context.Context, d Delivery) (*Result, error) {
 		Branch:                  parsed.Branch,
 		Commit:                  parsed.Commit,
 		Actor:                   actorOf(d, tokenHeaderName),
+		CommitMessage:           parsed.CommitMessage,
 		ResolvedEnvironment:     mapping.Environment,
 		ResolvedTargetServerIDs: mapping.TargetServerIDs,
 	})
@@ -510,17 +514,21 @@ func eventSubscribed(event string, ev Events) bool {
 //
 // ChangedFiles 为本次 push 改动的文件路径并集(commits[].{added,modified,removed} 去重);
 // 仅 push 事件有意义,其余事件 / 拿不到时为空(空 → 路径过滤放行,诚实降级)。
-// ObjectKind / Ref 供事件类型兜底判定用(见 eventFromPayload)。
+// CommitMessage 是触发提交的说明信息首行(commits[] 末条 / head_commit.message),供通知引用展示;
+// 拿不到时为空。ObjectKind / Ref 供事件类型兜底判定用(见 eventFromPayload)。
 type parsedPayload struct {
-	Branch       string
-	Commit       string
-	ChangedFiles []string
-	ObjectKind   string
-	Ref          string
+	Branch        string
+	Commit        string
+	CommitMessage string
+	ChangedFiles  []string
+	ObjectKind    string
+	Ref           string
 }
 
-// pushCommit 是 push 事件 commits[] 元素里本包关心的改动文件三类(GitHub/Gitee 同形)。
+// pushCommit 是 push 事件 commits[] 元素里本包关心的字段(GitHub/Gitee/GitLab 同形):
+// 改动文件三类 + 说明信息(首行取于通知展示)。
 type pushCommit struct {
+	Message  string   `json:"message"`
 	Added    []string `json:"added"`
 	Modified []string `json:"modified"`
 	Removed  []string `json:"removed"`
@@ -539,7 +547,8 @@ type hookPayload struct {
 	CheckoutSHA string       `json:"checkout_sha"`
 	Commits     []pushCommit `json:"commits"`
 	HeadCommit  struct {
-		ID string `json:"id"`
+		ID      string `json:"id"`
+		Message string `json:"message"`
 	} `json:"head_commit"`
 	PullRequest struct {
 		Head struct {
@@ -589,13 +598,33 @@ func parsePayload(body []byte) parsedPayload {
 	if commit == "" {
 		commit = strings.TrimSpace(p.Release.TargetCommitish)
 	}
-	return parsedPayload{
-		Branch:       branch,
-		Commit:       commit,
-		ChangedFiles: changedFiles(p.Commits),
-		ObjectKind:   strings.TrimSpace(p.ObjectKind),
-		Ref:          strings.TrimSpace(p.Ref),
+
+	// 触发提交的说明信息:commits[] 末条即 tip(GitLab/Gitee push 同形);缺省回退 head_commit.message
+	// (GitHub 常见)。仅取首行(正文多行说明不进通知)。
+	commitMessage := ""
+	if n := len(p.Commits); n > 0 {
+		commitMessage = firstLine(p.Commits[n-1].Message)
 	}
+	if commitMessage == "" {
+		commitMessage = firstLine(p.HeadCommit.Message)
+	}
+	return parsedPayload{
+		Branch:        branch,
+		Commit:        commit,
+		CommitMessage: commitMessage,
+		ChangedFiles:  changedFiles(p.Commits),
+		ObjectKind:    strings.TrimSpace(p.ObjectKind),
+		Ref:           strings.TrimSpace(p.Ref),
+	}
+}
+
+// firstLine 取文本首行并 trim(通知引用展示用;空 → 空串)。
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	return s
 }
 
 // object_kind 取值(GitLab 风格;云效 Codeup 同形,是 Codeup 投递里唯一可靠的事件类型来源)。

@@ -240,11 +240,11 @@ func (s *service) Create(ctx context.Context, projectID string, trigger Trigger)
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO pipeline_runs
 		   (id, project_id, status, trigger_type, trigger_branch, trigger_commit, trigger_actor,
-		    resolved_environment, resolved_target_server_ids, params_json,
+		    trigger_commit_message, resolved_environment, resolved_target_server_ids, params_json,
 		    chain_source_run_id, chain_depth, created_at, started_at, finished_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
 		id, projectID, StatusQueued, tt, trigger.Branch, trigger.Commit, trigger.Actor,
-		trigger.ResolvedEnvironment, string(targetIDsJSON), string(paramsJSON),
+		strings.TrimSpace(trigger.CommitMessage), trigger.ResolvedEnvironment, string(targetIDsJSON), string(paramsJSON),
 		strings.TrimSpace(trigger.ChainSourceRunID), chainDepth,
 		now.Format(time.RFC3339),
 	)
@@ -288,6 +288,7 @@ func (s *service) Get(ctx context.Context, id string) (*Run, error) {
 	err := s.db.QueryRowContext(ctx,
 		`SELECT pr.project_id, COALESCE(p.name, ''), pr.status,
 		        pr.trigger_type, pr.trigger_branch, pr.trigger_commit, pr.trigger_actor,
+		        pr.trigger_commit_message,
 		        pr.created_at, pr.started_at, pr.finished_at,
 		        pr.failure_log, pr.diagnosis_json, pr.params_json,
 		        pr.chain_source_run_id, pr.chain_depth,
@@ -298,6 +299,7 @@ func (s *service) Get(ctx context.Context, id string) (*Run, error) {
 		 WHERE pr.id = ?`, id,
 	).Scan(&r.ProjectID, &r.ProjectName, &r.Status,
 		&r.Trigger.Type, &r.Trigger.Branch, &r.Trigger.Commit, &r.Trigger.Actor,
+		&r.Trigger.CommitMessage,
 		&createdStr, &startedStr, &finishStr,
 		&failureLog, &diagnosisJSON, &paramsJSON,
 		&r.Trigger.ChainSourceRunID, &r.Trigger.ChainDepth,

@@ -29,9 +29,24 @@ func init() {
 		"点击前往审批": {"zh-TW": "點此前往審批", "en": "Click to review", "ja": "クリックして承認", "ko": "클릭하여 승인", "es": "Haga clic para revisar", "fr": "Cliquez pour examiner", "de": "Zum Prüfen klicken"},
 
 		// Titles / misc.
-		"Pipewright 通知": {"zh-TW": "Pipewright 通知", "en": "Pipewright notification", "ja": "Pipewright 通知", "ko": "Pipewright 알림", "es": "Notificación de Pipewright", "fr": "Notification Pipewright", "de": "Pipewright-Benachrichtigung"},
-		"(空通知)":         {"zh-TW": "(空通知)", "en": "(empty notification)", "ja": "(空の通知)", "ko": "(빈 알림)", "es": "(notificación vacía)", "fr": "(notification vide)", "de": "(leere Benachrichtigung)"},
-		"测试通知已发送":       {"zh-TW": "測試通知已發送", "en": "Test notification sent", "ja": "テスト通知を送信しました", "ko": "테스트 알림을 보냈습니다", "es": "Notificación de prueba enviada", "fr": "Notification de test envoyée", "de": "Testbenachrichtigung gesendet"},
+		"Pipewright 通知":      {"zh-TW": "Pipewright 通知", "en": "Pipewright notification", "ja": "Pipewright 通知", "ko": "Pipewright 알림", "es": "Notificación de Pipewright", "fr": "Notification Pipewright", "de": "Pipewright-Benachrichtigung"},
+		"Pipewright 流水线消息通知": {"zh-TW": "Pipewright 流水線訊息通知", "en": "Pipewright pipeline notification", "ja": "Pipewright パイプライン通知", "ko": "Pipewright 파이프라인 알림", "es": "Notificación de pipeline de Pipewright", "fr": "Notification de pipeline Pipewright", "de": "Pipewright-Pipeline-Benachrichtigung"},
+
+		// 流水线卡片(企微/钉钉群机器人)字段标签与触发信息文案。
+		"流水线":       {"zh-TW": "流水線", "en": "Pipeline", "ja": "パイプライン", "ko": "파이프라인", "es": "Canalización", "fr": "Pipeline", "de": "Pipeline"},
+		"流水线环境":     {"zh-TW": "流水線環境", "en": "Pipeline environment", "ja": "パイプライン環境", "ko": "파이프라인 환경", "es": "Entorno de canalización", "fr": "Environnement du pipeline", "de": "Pipeline-Umgebung"},
+		"执行人":       {"zh-TW": "執行人", "en": "Executor", "ja": "実行者", "ko": "실행자", "es": "Ejecutor", "fr": "Exécuteur", "de": "Ausführender"},
+		"触发信息":      {"zh-TW": "觸發資訊", "en": "Trigger", "ja": "トリガー", "ko": "트리거", "es": "Disparador", "fr": "Déclencheur", "de": "Auslöser"},
+		"流水线阶段":     {"zh-TW": "流水線階段", "en": "Pipeline stage", "ja": "パイプラインステージ", "ko": "파이프라인 단계", "es": "Etapa", "fr": "Étape du pipeline", "de": "Pipeline-Phase"},
+		"流水线任务":     {"zh-TW": "流水線任務", "en": "Pipeline job", "ja": "パイプライジョブ", "ko": "파이프라인 작업", "es": "Tarea", "fr": "Tâche du pipeline", "de": "Pipeline-Job"},
+		"运行状态":      {"zh-TW": "執行狀態", "en": "Run status", "ja": "実行ステータス", "ko": "실행 상태", "es": "Estado de ejecución", "fr": "Statut d’exécution", "de": "Ausführungsstatus"},
+		"提交信息":      {"zh-TW": "提交資訊", "en": "Commit message", "ja": "コミットメッセージ", "ko": "커밋 메시지", "es": "Mensaje de commit", "fr": "Message de commit", "de": "Commit-Nachricht"},
+		"流水线定时自动触发": {"zh-TW": "流水線定時自動觸發", "en": "Scheduled pipeline trigger", "ja": "パイプラインの定時自動トリガー", "ko": "파이프라인 예약 자동 트리거", "es": "Disparo automático programado", "fr": "Déclenchement planifié automatique", "de": "Geplante Pipeline-Auslösung"},
+		"代码推送触发":    {"zh-TW": "程式碼推送觸發", "en": "Code push trigger", "ja": "コードプッシュでトリガー", "ko": "코드 푸시 트리거", "es": "Disparo por push de código", "fr": "Déclenché par un push", "de": "Code-Push-Auslösung"},
+		"手动触发":      {"zh-TW": "手動觸發", "en": "Manual trigger", "ja": "手動トリガー", "ko": "수동 트리거", "es": "Disparo manual", "fr": "Déclenchement manuel", "de": "Manuelle Auslösung"},
+		"上游运行串联触发":  {"zh-TW": "上游執行串聯觸發", "en": "Triggered by upstream run (chain)", "ja": "上流実行のチェーンでトリガー", "ko": "상위 실행 체인 트리거", "es": "Disparo encadenado por ejecución ascendente", "fr": "Déclenché par enchaînement amont", "de": "Durch vorgelagerten Lauf ausgelöst (Kette)"},
+		"(空通知)":     {"zh-TW": "(空通知)", "en": "(empty notification)", "ja": "(空の通知)", "ko": "(빈 알림)", "es": "(notificación vacía)", "fr": "(notification vide)", "de": "(leere Benachrichtigung)"},
+		"测试通知已发送":   {"zh-TW": "測試通知已發送", "en": "Test notification sent", "ja": "テスト通知を送信しました", "ko": "테스트 알림을 보냈습니다", "es": "Notificación de prueba enviada", "fr": "Notification de test envoyée", "de": "Testbenachrichtigung gesendet"},
 		"通知语言非法:须为受支持的语言代码": {"zh-TW": "通知語言非法:須為受支持的語言代碼", "en": "Invalid notification language: must be a supported language code", "ja": "通知言語が不正です:サポートされている言語コードである必要があります", "ko": "알림 언어가 잘못되었습니다: 지원되는 언어 코드여야 합니다", "es": "Idioma de notificación no válido: debe ser un código de idioma admitido", "fr": "Langue de notification non valide : doit être un code de langue pris en charge", "de": "Ungültige Benachrichtigungssprache: muss ein unterstützter Sprachcode sein"},
 	})
 }

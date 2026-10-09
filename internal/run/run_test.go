@@ -447,3 +447,40 @@ func TestSubscribeReceivesEvents(t *testing.T) {
 		}
 	}
 }
+
+// TestCreatePersistsCommitMessage 验证触发提交说明信息入库并经 Get 回读(供通知引用展示)。
+func TestCreatePersistsCommitMessage(t *testing.T) {
+	db := testDB(t)
+	svc := New(db) // 无 pool:仅入库,不调度
+
+	projID := seedProject(t, db)
+	r, err := svc.Create(context.Background(), projID, Trigger{
+		Type:          TriggerWebhook,
+		Branch:        "main",
+		Commit:        "abc123def",
+		CommitMessage: "chore(agent): 端点生成器改为显式任务并支持仓库级排除清单",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	got, err := svc.Get(context.Background(), r.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Trigger.CommitMessage != "chore(agent): 端点生成器改为显式任务并支持仓库级排除清单" {
+		t.Fatalf("CommitMessage 回读不符: %q", got.Trigger.CommitMessage)
+	}
+
+	// 空提交说明(手动/定时/串联触发)→ 回读空串,不报错。
+	r2, err := svc.Create(context.Background(), projID, Trigger{Type: TriggerManual, Branch: "main"})
+	if err != nil {
+		t.Fatalf("Create manual: %v", err)
+	}
+	got2, err := svc.Get(context.Background(), r2.ID)
+	if err != nil {
+		t.Fatalf("Get manual: %v", err)
+	}
+	if got2.Trigger.CommitMessage != "" {
+		t.Fatalf("手动触发 CommitMessage 应为空, got %q", got2.Trigger.CommitMessage)
+	}
+}

@@ -87,7 +87,7 @@ func (s *service) sendDingtalk(ctx context.Context, ch *Channel, sealed []byte, 
 		MsgType: "markdown",
 		Markdown: dingtalkMarkdownObj{
 			Title: title,
-			Text:  renderMarkdownBody(payload),
+			Text:  renderMarkdownBody(payload, flavorDingtalk),
 		},
 	}
 

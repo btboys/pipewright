@@ -54,7 +54,7 @@ func (s *service) sendWecom(ctx context.Context, ch *Channel, payload Payload) e
 
 	body := wecomMarkdownBody{
 		MsgType:  "markdown",
-		Markdown: wecomMarkdownObj{Content: renderMarkdownBody(payload)},
+		Markdown: wecomMarkdownObj{Content: renderMarkdownBody(payload, flavorWecom)},
 	}
 
 	raw, err := json.Marshal(body)
@@ -101,13 +101,30 @@ func (s *service) sendWecom(ctx context.Context, ch *Channel, payload Payload) e
 
 // ─── 通用 markdown 正文渲染(企微 / 钉钉共用) ───────────────────────────────────
 //
-// 把 Payload(标题 + 正文 + 结构化字段)拼成一段 markdown:
-//   - 标题:一级标题 "# {Title}"。
-//   - 正文:原样一段。
-//   - 字段:按业务顺序(复用 feishuFieldOrder)逐行 "**标签**:值",中文/locale 标签复用 feishuFieldLabel。
+// 两种渲染形态:
+//   - **流水线卡片**:载荷带 fieldPipeline 键(平台默认渲染的**运行终态事件**)时,按
+//     「Pipewright 流水线消息通知」卡片渲染(对齐 Flow 通知格式):彩色标题 + 流水线名(可点击)
+//   - 环境/执行人/触发信息/阶段/任务/运行状态 + 提交说明引用行。空值行省略。
+//   - **旧版字段列表**:其余载荷(自定义模板 / 审批 / 异常 / 测试通知)保持
+//     「# 标题 + 正文 + **标签**:值 字段列表」不变。
 //
-// 钉钉/企微 markdown 语法基本一致,故共用一份渲染。标题另由各自的 title 字段透出。
-func renderMarkdownBody(p Payload) string {
+// markdownFlavor 区分企微与钉钉:企微 markdown 支持 <font color="info">(绿) 标题,
+// 钉钉不支持(会原样显示标签),故彩色标题仅企微 flavor 输出。
+type markdownFlavor int
+
+const (
+	flavorWecom markdownFlavor = iota
+	flavorDingtalk
+)
+
+// renderMarkdownBody 把 Payload 渲染为群机器人 markdown 正文。
+func renderMarkdownBody(p Payload, flavor markdownFlavor) string {
+	if strings.TrimSpace(p.Fields[fieldPipeline]) != "" {
+		if card := renderPipelineCard(p, flavor); card != "" {
+			return card
+		}
+	}
+
 	var b strings.Builder
 	title := strings.TrimSpace(p.Title)
 	if title == "" {
@@ -134,6 +151,107 @@ func renderMarkdownBody(p Payload) string {
 		}
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderPipelineCard 渲染「Pipewright 流水线消息通知」卡片(运行终态事件):
+//
+//	# <绿标题:Pipewright 流水线消息通知>          ← 仅企微 flavor 输出彩色标签
+//	**流水线**: [名称](运行详情链接)
+//	**流水线环境**: 正式环境
+//	**执行人**: admin
+//	**触发信息**: 流水线定时自动触发
+//	**流水线阶段**: 部署
+//	**流水线任务**: 纷析云部署
+//	**运行状态**: ✅运行成功
+//
+//	> chore(agent): 端点生成器改为显式任务并支持仓库级排除清单
+//
+// 空值行省略;提交说明取首行(存字段时已截断)。pipelineUrl 缺失时流水线名为纯文本。
+func renderPipelineCard(p Payload, flavor markdownFlavor) string {
+	f := p.Fields
+	var b strings.Builder
+	title := i18n.T(p.Lang, "Pipewright 流水线消息通知")
+	if flavor == flavorWecom {
+		b.WriteString("# <font color=\"info\">")
+		b.WriteString(title)
+		b.WriteString("</font>")
+	} else {
+		b.WriteString("# ")
+		b.WriteString(title)
+	}
+
+	// 流水线:优先渲染为可点击链接(运行详情页)。
+	b.WriteString("\n\n**")
+	b.WriteString(i18n.T(p.Lang, "流水线"))
+	b.WriteString("**:")
+	if u := strings.TrimSpace(f[fieldPipelineURL]); u != "" {
+		b.WriteString("[")
+		b.WriteString(f[fieldPipeline])
+		b.WriteString("](")
+		b.WriteString(u)
+		b.WriteString(")")
+	} else {
+		b.WriteString(f[fieldPipeline])
+	}
+
+	line := func(key, label, value string) {
+		if v := strings.TrimSpace(value); v != "" {
+			b.WriteString("\n**")
+			b.WriteString(i18n.T(p.Lang, label))
+			b.WriteString("**:")
+			b.WriteString(v)
+		}
+	}
+	line("environment", "流水线环境", f["environment"])
+	line("actor", "执行人", f["actor"])
+	line("triggerType", "触发信息", triggerInfoLabel(f["triggerType"], p.Lang))
+	line("stage", "流水线阶段", f["stage"])
+	line("task", "流水线任务", f["task"])
+
+	// 运行状态:事件图标 + 本地化事件标签。
+	event := strings.TrimSpace(f["event"])
+	b.WriteString("\n**")
+	b.WriteString(i18n.T(p.Lang, "运行状态"))
+	b.WriteString("**:")
+	b.WriteString(eventStatusIcon(event))
+	b.WriteString(eventLabel(event, p.Lang))
+
+	// 提交说明引用行(> 首行)。
+	if msg := strings.TrimSpace(f["commitMessage"]); msg != "" {
+		b.WriteString("\n\n> ")
+		b.WriteString(msg)
+	}
+	return b.String()
+}
+
+// eventStatusIcon 返回事件对应的运行状态图标(✅ 成功 / ❌ 失败 / 🔄 回滚)。
+func eventStatusIcon(event string) string {
+	switch event {
+	case EventBuildSucceeded, EventDeploySucceeded:
+		return "✅"
+	case EventBuildFailed, EventDeployFailed, EventHealthCheckFailed:
+		return "❌"
+	case EventRollback:
+		return "🔄"
+	default:
+		return "🔔"
+	}
+}
+
+// triggerInfoLabel 把触发类型枚举渲染为本地化人读文案(空/未知原样透出)。
+func triggerInfoLabel(triggerType, lang string) string {
+	switch strings.TrimSpace(triggerType) {
+	case "schedule":
+		return i18n.T(lang, "流水线定时自动触发")
+	case "webhook":
+		return i18n.T(lang, "代码推送触发")
+	case "manual":
+		return i18n.T(lang, "手动触发")
+	case "chain":
+		return i18n.T(lang, "上游运行串联触发")
+	default:
+		return strings.TrimSpace(triggerType)
+	}
 }
 
 // orderedFieldKeys 返回字段 key 的稳定展示顺序(业务顺序优先,复用 feishuFieldOrder;其余字母序)。

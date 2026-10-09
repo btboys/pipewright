@@ -35,6 +35,7 @@ func (a runCreatorAdapter) CreateWebhookRun(ctx context.Context, projectID strin
 		Branch:                  in.Branch,
 		Commit:                  in.Commit,
 		Actor:                   in.Actor,
+		CommitMessage:           in.CommitMessage,
 		ResolvedEnvironment:     in.ResolvedEnvironment,
 		ResolvedTargetServerIDs: in.ResolvedTargetServerIDs,
 	})

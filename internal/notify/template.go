@@ -60,15 +60,26 @@ type UpdateTemplateInput struct {
 //   - Project / Branch / Commit(短)/ Status / Event:运行展示元数据。
 //   - DurationMs:耗时毫秒(字符串化);RunID:运行 ID。
 //   - ErrorSummary:失败摘要(已尽力脱敏;绝无明文 secret)。
+//   - Environment / Stage / Task:终态运行的目标环境名 / 终态阶段 / 终态任务(job 名)。
+//   - Actor:触发者;TriggerType:触发类型枚举(webhook|manual|schedule|chain)。
+//   - CommitMessage:触发提交的说明信息首行(通知引用展示;空 = 无)。
+//   - RunURL:运行详情页链接(publicURL + /runs/{id});空 = 未配置对外地址。
 type TemplateVars struct {
-	Project      string
-	Branch       string
-	Commit       string
-	Status       string
-	Event        string
-	DurationMs   string
-	RunID        string
-	ErrorSummary string
+	Project       string
+	Branch        string
+	Commit        string
+	Status        string
+	Event         string
+	DurationMs    string
+	RunID         string
+	ErrorSummary  string
+	Environment   string
+	Stage         string
+	Task          string
+	Actor         string
+	TriggerType   string
+	CommitMessage string
+	RunURL        string
 	// ActionURL 是一次性操作链接(目前用于 approval_required 事件的签名审批链接);
 	// 空 = 该事件无操作链接。渲染时占位名 {{actionUrl}};并透出到 Payload.Fields["审批链接"]/正文。
 	ActionURL string
@@ -80,15 +91,22 @@ type TemplateVars struct {
 // asMap 把 TemplateVars 展开为占位名 → 值的映射(冻结占位名)。
 func (v TemplateVars) asMap() map[string]string {
 	return map[string]string{
-		"project":      v.Project,
-		"branch":       v.Branch,
-		"commit":       v.Commit,
-		"status":       v.Status,
-		"event":        v.Event,
-		"durationMs":   v.DurationMs,
-		"runId":        v.RunID,
-		"errorSummary": v.ErrorSummary,
-		"actionUrl":    v.ActionURL,
+		"project":       v.Project,
+		"branch":        v.Branch,
+		"commit":        v.Commit,
+		"status":        v.Status,
+		"event":         v.Event,
+		"durationMs":    v.DurationMs,
+		"runId":         v.RunID,
+		"errorSummary":  v.ErrorSummary,
+		"actionUrl":     v.ActionURL,
+		"environment":   v.Environment,
+		"stage":         v.Stage,
+		"task":          v.Task,
+		"actor":         v.Actor,
+		"triggerType":   v.TriggerType,
+		"commitMessage": v.CommitMessage,
+		"runUrl":        v.RunURL,
 	}
 }
 
@@ -326,7 +344,61 @@ func (s *service) defaultPayload(ctx context.Context, event string, vars Templat
 		label := i18n.T(lang, "审批链接")
 		p.Body = strings.TrimRight(p.Body, "。.") + bodySeparator(lang) + label + bodySeparator(lang) + url
 	}
+	// 运行终态事件:补流水线卡片字段——企微/钉钉据此渲染「流水线消息通知」卡片(见 renderMarkdownBody);
+	// 飞书/邮件/webhook 仍按结构化字段透出(新增键均为附加,不改变既有键)。
+	if isRunTerminalEvent(event) {
+		if p.Fields == nil {
+			p.Fields = map[string]string{}
+		}
+		if name := strings.TrimSpace(vars.Project); name != "" {
+			p.Fields[fieldPipeline] = name
+		}
+		if u := strings.TrimSpace(vars.RunURL); u != "" {
+			p.Fields[fieldPipelineURL] = u
+			// 同时复用 actionUrl 键:飞书卡片把运行详情链接渲染成「查看运行详情」按钮。
+			p.Fields[fieldActionURL] = u
+		}
+		for k, v := range map[string]string{
+			"environment":   vars.Environment,
+			"actor":         vars.Actor,
+			"triggerType":   vars.TriggerType,
+			"stage":         vars.Stage,
+			"task":          vars.Task,
+			"commitMessage": shortCommitMessage(vars.CommitMessage),
+		} {
+			if s := strings.TrimSpace(v); s != "" {
+				p.Fields[k] = s
+			}
+		}
+	}
 	return p
+}
+
+// fieldPipeline / fieldPipelineURL 是 Payload.Fields 里承载流水线卡片信息的键:
+//   - fieldPipeline:流水线名,**同时是卡片格式标记**(企微/钉钉 renderMarkdownBody 见到该键即
+//     渲染流水线卡片而非旧版字段列表)。仅在平台默认渲染(defaultPayload)的终态事件上设置,
+//     自定义模板路径不设置 → 自定义模板行为不变。
+//   - fieldPipelineURL:运行详情页链接;卡片里流水线名渲染为可点击链接。飞书字段格跳过该键
+//     (链接已由 actionUrl 按钮透出)。
+const (
+	fieldPipeline    = "pipeline"
+	fieldPipelineURL = "pipelineUrl"
+)
+
+// maxCommitMessageLen 限制通知里引用展示的提交说明长度(避免超长正文)。
+const maxCommitMessageLen = 200
+
+// shortCommitMessage 取提交说明首行并截断到上限(通知引用展示用;空 → 空串)。
+func shortCommitMessage(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	r := []rune(s)
+	if len(r) > maxCommitMessageLen {
+		s = string(r[:maxCommitMessageLen]) + "…"
+	}
+	return s
 }
 
 // fieldActionURL 是 Payload.Fields 里承载操作链接的键(各渠道据此渲染为可点击链接)。
