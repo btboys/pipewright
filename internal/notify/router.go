@@ -468,6 +468,18 @@ func bodyPeriod(lang string) string {
 	return "."
 }
 
+// isRunTerminalEvent 报告事件是否为「运行终态」事件(构建/部署/回滚终态通知;
+// approval_required / anomaly_detected 等不在其列)。
+func isRunTerminalEvent(event string) bool {
+	switch event {
+	case EventBuildSucceeded, EventBuildFailed, EventDeploySucceeded,
+		EventDeployFailed, EventRollback:
+		return true
+	default:
+		return false
+	}
+}
+
 // eventLabel 返回事件标签(默认文案,按 lang 本地化)。
 func eventLabel(event, lang string) string {
 	switch event {

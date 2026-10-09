@@ -807,3 +807,50 @@ func TestCodeupPushWithoutEventHeaderEventGatePasses(t *testing.T) {
 		t.Fatalf("不应创建运行, got %d", fake.count())
 	}
 }
+
+// TestWebhookPushCarriesCommitMessage 验证 push 事件把触发提交的说明信息(commits[] 末条首行)
+// 解析进 RunRequest,供通知引用展示。
+func TestWebhookPushCarriesCommitMessage(t *testing.T) {
+	rc, fake, token, secret := newReceiver(t)
+	body := []byte(`{"ref":"refs/heads/main","after":"abc123","commits":[` +
+		`{"id":"1","message":"first commit\n\nbody 多行说明"},{"id":"2","message":"chore(agent): 端点生成器改为显式任务并支持仓库级排除清单\n\n更多说明"}` +
+		`]}`)
+	res, err := rc.Handle(context.Background(), Delivery{
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-cm"),
+		RawBody: body,
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if !res.Accepted {
+		t.Fatalf("expected accepted, got %+v", res)
+	}
+	if fake.count() != 1 {
+		t.Fatalf("expected 1 run, got %d", fake.count())
+	}
+	if got := fake.calls[0].CommitMessage; got != "chore(agent): 端点生成器改为显式任务并支持仓库级排除清单" {
+		t.Fatalf("CommitMessage = %q", got)
+	}
+}
+
+// TestWebhookPushCommitMessageHeadCommitFallback 验证 commits[] 缺失时回退 head_commit.message
+// (GitHub push 载荷常见形状)。
+func TestWebhookPushCommitMessageHeadCommitFallback(t *testing.T) {
+	rc, fake, token, secret := newReceiver(t)
+	body := []byte(`{"ref":"refs/heads/main","after":"abc123","head_commit":{"id":"abc123","message":"fix: 修复部署健康检查"}}`)
+	res, err := rc.Handle(context.Background(), Delivery{
+		Token:   token,
+		Header:  giteeHeaders(eventPush, secret, "", "d-cm2"),
+		RawBody: body,
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if !res.Accepted || fake.count() != 1 {
+		t.Fatalf("expected accepted run, got %+v / %d runs", res, fake.count())
+	}
+	if got := fake.calls[0].CommitMessage; got != "fix: 修复部署健康检查" {
+		t.Fatalf("CommitMessage = %q", got)
+	}
+}

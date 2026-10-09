@@ -104,6 +104,10 @@ type Trigger struct {
 	Commit string
 	Actor  string
 
+	// CommitMessage 是触发提交的说明信息(push 事件的 commit message 首行;webhook 接收时解析)。
+	// 仅供通知等展示用途;手动/定时/串联触发为空串。
+	CommitMessage string
+
 	// ResolvedEnvironment 是解析出的目标环境名(手动触发为空)。
 	ResolvedEnvironment string
 	// ResolvedTargetServerIDs 是解析出的目标服务器引用 id 列表(手动触发为空)。

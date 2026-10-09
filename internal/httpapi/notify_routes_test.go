@@ -196,3 +196,29 @@ func TestNotifyHookEventMapping(t *testing.T) {
 		}
 	}
 }
+
+// TestTerminalStageTask 验证终态阶段/任务推导:失败取第一个失败步骤,成功取最后非跳过步骤,
+// 空步骤 → 空串。
+func TestTerminalStageTask(t *testing.T) {
+	steps := []run.Step{
+		{Name: "build", Stage: "构建", Status: run.StepSuccess, Ordinal: 0},
+		{Name: "deploy", Stage: "部署", Status: run.StepSuccess, Ordinal: 1},
+	}
+	s, task := terminalStageTask(steps, run.StatusSuccess)
+	if s != "部署" || task != "deploy" {
+		t.Fatalf("success 应取最后非跳过步骤, got (%q,%q)", s, task)
+	}
+
+	failed := []run.Step{
+		{Name: "build", Stage: "构建", Status: run.StepFailed, Ordinal: 0},
+		{Name: "deploy", Stage: "部署", Status: run.StepSkipped, Ordinal: 1},
+	}
+	s, task = terminalStageTask(failed, run.StatusFailed)
+	if s != "构建" || task != "build" {
+		t.Fatalf("failed 应取第一个失败步骤, got (%q,%q)", s, task)
+	}
+
+	if s, task = terminalStageTask(nil, run.StatusSuccess); s != "" || task != "" {
+		t.Fatalf("空步骤应为空, got (%q,%q)", s, task)
+	}
+}

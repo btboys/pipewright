@@ -299,7 +299,7 @@ func TestRenderMarkdownBody(t *testing.T) {
 		Body:   "aireboot @ staging",
 		Fields: map[string]string{"status": "success", "branch": "main", "event": "deploy_succeeded"},
 		Lang:   "zh-CN",
-	})
+	}, flavorWecom)
 	if !strings.HasPrefix(md, "# 部署成功") {
 		t.Fatalf("应以一级标题起: %q", md)
 	}
@@ -319,7 +319,105 @@ func TestRenderMarkdownBody(t *testing.T) {
 		t.Fatalf("业务顺序:状态应在事件前:\n%s", md)
 	}
 	// 空载荷:仍产默认标题,不 panic。
-	if !strings.HasPrefix(renderMarkdownBody(Payload{}), "# Pipewright 通知") {
+	if !strings.HasPrefix(renderMarkdownBody(Payload{}, flavorWecom), "# Pipewright 通知") {
 		t.Fatalf("空载荷应产默认标题")
+	}
+}
+
+// 流水线卡片(运行终态事件):企微 flavor 输出彩色标题 + 流水线名链接 + 卡片字段行 + 提交说明引用行;
+// 空值行省略。对齐 Flow 流水线消息通知格式。
+func TestRenderPipelineCardWecom(t *testing.T) {
+	md := renderPipelineCardForTest(t, flavorWecom)
+	for _, want := range []string{
+		`# <font color="info">Pipewright 流水线消息通知</font>`,
+		"**流水线**:[财务V5自动构建_saas](https://pw.example.com/runs/r1)",
+		"**流水线环境**:正式环境",
+		"**触发信息**:流水线定时自动触发",
+		"**流水线阶段**:部署",
+		"**流水线任务**:纷析云部署",
+		"**运行状态**:✅构建成功",
+		"> chore(agent): 端点生成器改为显式任务并支持仓库级排除清单",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("企微卡片应含 %q,得:\n%s", want, md)
+		}
+	}
+	// 空值行省略:执行人/actor 为空不应出现该行。
+	if strings.Contains(md, "**执行人**") {
+		t.Fatalf("空值行应省略(执行人为空):\n%s", md)
+	}
+}
+
+// 钉钉 flavor:标题不带企微专有彩色标签(钉钉不支持 <font color>),其余结构一致。
+func TestRenderPipelineCardDingtalk(t *testing.T) {
+	md := renderPipelineCardForTest(t, flavorDingtalk)
+	if !strings.HasPrefix(md, "# Pipewright 流水线消息通知") {
+		t.Fatalf("钉钉卡片标题应为纯文本一级标题: %q", md)
+	}
+	if strings.Contains(md, "<font color=") {
+		t.Fatalf("钉钉不应输出企微彩色标签:\n%s", md)
+	}
+	if !strings.Contains(md, "**运行状态**:✅构建成功") {
+		t.Fatalf("钉钉卡片应含运行状态行:\n%s", md)
+	}
+}
+
+// renderPipelineCardForTest 构造一张终态成功卡片载荷(带 fieldPipeline 键)并渲染。
+func renderPipelineCardForTest(t *testing.T, flavor markdownFlavor) string {
+	t.Helper()
+	p := Payload{
+		Lang: "zh-CN",
+		Fields: map[string]string{
+			"event":         "build_succeeded",
+			"pipeline":      "财务V5自动构建_saas",
+			"pipelineUrl":   "https://pw.example.com/runs/r1",
+			"environment":   "正式环境",
+			"triggerType":   "schedule",
+			"stage":         "部署",
+			"task":          "纷析云部署",
+			"commitMessage": "chore(agent): 端点生成器改为显式任务并支持仓库级排除清单",
+			// actor 故意缺省:空值行应被省略。
+		},
+	}
+	return renderMarkdownBody(p, flavor)
+}
+
+// 触发信息文案映射:schedule/webhook/manual/chain → 本地化人读文案;未知值原样透出。
+func TestTriggerInfoLabel(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"schedule", "流水线定时自动触发"},
+		{"webhook", "代码推送触发"},
+		{"manual", "手动触发"},
+		{"chain", "上游运行串联触发"},
+		{"mystery", "mystery"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := triggerInfoLabel(c.in, "zh-CN"); got != c.want {
+			t.Fatalf("triggerInfoLabel(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	if got := triggerInfoLabel("schedule", "en"); got != "Scheduled pipeline trigger" {
+		t.Fatalf("en schedule = %q", got)
+	}
+}
+
+// 无 pipeline 键的载荷(自定义模板/审批/异常/测试通知)保持旧版字段列表渲染,行为不变。
+func TestRenderMarkdownBodyLegacyUnchanged(t *testing.T) {
+	md := renderMarkdownBody(Payload{
+		Title: "需要审批",
+		Fields: map[string]string{
+			"event": "approval_required", "project": "demo", "status": "waiting_approval",
+		},
+		Lang: "zh-CN",
+	}, flavorWecom)
+	if strings.Contains(md, "流水线消息通知") {
+		t.Fatalf("无 pipeline 键不应走卡片渲染:\n%s", md)
+	}
+	if !strings.HasPrefix(md, "# 需要审批") {
+		t.Fatalf("应保持旧版标题渲染:\n%s", md)
 	}
 }

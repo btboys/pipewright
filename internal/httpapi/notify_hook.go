@@ -20,6 +20,10 @@ import (
 // notify.Router.RouteEvent」。RouteEvent 内部已是 best-effort(未配路由不发、单渠道失败续发);
 // 此处再自带超时(防 webhook 慢响应把 goroutine 挂死),失败仅记日志,**绝不影响 run 终态**。
 //
+// publicURL 是平台对外访问地址(同 PIPEWRIGHT_PUBLIC_URL):非空时通知携带运行详情链接
+// (企微/钉钉卡片里流水线名可点击,飞书卡片出「查看运行详情」按钮);空 = 不配置对外地址 →
+// 链接省略,通知仍发。
+//
 // run 终态 → 事件映射(冻结):
 //   - success        → build_succeeded
 //   - failed         → build_failed
@@ -27,7 +31,8 @@ import (
 //   - rolled_back    → rollback
 //
 // 其余终态/非终态不映射任何事件(不发)。
-func NewNotifyHook(runs run.Service, notifySvc notify.Service, secretSrc *RunSecretSource) func(ctx context.Context, runID, finalStatus string) {
+func NewNotifyHook(runs run.Service, notifySvc notify.Service, secretSrc *RunSecretSource, publicURL string) func(ctx context.Context, runID, finalStatus string) {
+	base := strings.TrimRight(strings.TrimSpace(publicURL), "/")
 	return func(ctx context.Context, runID, finalStatus string) {
 		if runs == nil || notifySvc == nil {
 			return
@@ -41,11 +46,14 @@ func NewNotifyHook(runs run.Service, notifySvc notify.Service, secretSrc *RunSec
 		hookCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		// 取运行元数据构造 TemplateVars(项目名/分支/commit/状态/耗时/runId/errorSummary)。
+		// 取运行元数据构造 TemplateVars(项目名/分支/commit/状态/耗时/runId/errorSummary +
+		// 环境/执行人/触发类型/终态阶段任务/提交说明/运行详情链接)。
 		// 取失败仅记日志、用降级 vars(仅含事件/状态/runId)继续:通知 best-effort,不因取数
 		// 失败而完全不发。errorSummary 经 notify.MaskErrorSummary 尽力脱敏(绝无明文 secret)。
 		var (
 			projectID, projectName, branch, commit, errorSummary string
+			environment, actor, triggerType, commitMessage       string
+			stage, task, runURL                                  string
 			durationMs                                           int64
 		)
 		if r, err := runs.Get(hookCtx, runID); err != nil {
@@ -56,19 +64,34 @@ func NewNotifyHook(runs run.Service, notifySvc notify.Service, secretSrc *RunSec
 			branch = r.Trigger.Branch
 			commit = r.Trigger.Commit
 			durationMs = runDurationMs(r)
+			environment = r.Trigger.ResolvedEnvironment
+			actor = r.Trigger.Actor
+			triggerType = r.Trigger.Type
+			commitMessage = r.Trigger.CommitMessage
+			stage, task = terminalStageTask(r.Steps, finalStatus)
+			if base != "" {
+				runURL = base + "/runs/" + runID
+			}
 			// errorSummary 出网脱敏(红线修):先用该 run 真实凭据 Masker 替换(项目/registry/secret
 			// 变量的明文),再过 notify 的关键字/形态正则兜底——双层确保通知正文绝无明文凭据。
 			errorSummary = maskerFor(hookCtx, secretSrc, runID).Scrub(notify.SummarizeFailure(r.FailureLog))
 		}
 
 		vars := notify.TemplateVars{
-			Project:      projectName,
-			Branch:       branch,
-			Commit:       notify.ShortCommit(commit),
-			Status:       finalStatus,
-			Event:        event,
-			RunID:        runID,
-			ErrorSummary: errorSummary,
+			Project:       projectName,
+			Branch:        branch,
+			Commit:        notify.ShortCommit(commit),
+			Status:        finalStatus,
+			Event:         event,
+			RunID:         runID,
+			ErrorSummary:  errorSummary,
+			Environment:   environment,
+			Actor:         actor,
+			TriggerType:   triggerType,
+			CommitMessage: commitMessage,
+			Stage:         stage,
+			Task:          task,
+			RunURL:        runURL,
 		}
 		if durationMs > 0 {
 			vars.DurationMs = strconv.FormatInt(durationMs, 10)
@@ -81,6 +104,33 @@ func NewNotifyHook(runs run.Service, notifySvc notify.Service, secretSrc *RunSec
 			log.Printf("[notify] run %s: 事件 %s 路由 best-effort 失败:%v", runID, event, err)
 		}
 	}
+}
+
+// terminalStageTask 从运行步骤推出终态通知里展示的「流水线阶段 / 流水线任务」:
+//   - 失败终态(failed / partial_failed):取第一个失败步骤(出错位置即关注点)。
+//   - 其余终态(success / rolled_back):取最后执行的非跳过步骤(收尾位置)。
+//
+// 步骤为空(降级/老数据)→ 空串(通知卡片省略该两行)。
+func terminalStageTask(steps []run.Step, finalStatus string) (stage, task string) {
+	if len(steps) == 0 {
+		return "", ""
+	}
+	pick := steps[0]
+	if finalStatus == run.StatusFailed || finalStatus == run.StatusPartialFailed {
+		for _, st := range steps {
+			if st.Status == run.StepFailed {
+				pick = st
+				break
+			}
+		}
+	} else {
+		for _, st := range steps {
+			if st.Status != run.StepSkipped && st.Ordinal >= pick.Ordinal {
+				pick = st
+			}
+		}
+	}
+	return pick.Stage, pick.Name
 }
 
 // approvalLinkTTL 是签名审批链接的有效期(审批人节奏可较慢,与门兜底超时一致)。
