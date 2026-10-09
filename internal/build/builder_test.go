@@ -2,6 +2,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -515,5 +516,49 @@ func TestSSRFBlocksMetadataIP(t *testing.T) {
 	}
 	if validRepoURL("file:///tmp/repo") {
 		t.Fatalf("file scheme must be blocked")
+	}
+}
+
+// TestCloneFailureLogsClassifiedReason 锁死本包的核心契约:克隆失败时,运行日志与 failure_log
+// 必须给出**已分类的原因 + 可执行的下一步**,而不是旧版那句「鉴权/网络/ref 不存在或被 SSRF 拒绝」
+// 让用户无从下手;同时 errors.Is(err, ErrCloneFailed) 的语义不能回归。
+func TestCloneFailureLogsClassifiedReason(t *testing.T) {
+	proj := &project.Project{ID: "p1", Name: "My App", RepoURL: "https://git.example.com/team/app.git"}
+	b := newTestBuilder(t, newFakeCommander(), proj, imageSettings(nil), nil)
+	b.cloner = &stubCloner{err: &CloneError{
+		Reason: ReasonRefNotFound,
+		Detail: "分支/commit 在远端不存在(远端报:couldn't find remote ref \"refs/heads/release\")",
+		Hint:   "请核对触发分支/commit 是否已推送到远端",
+		err:    ErrCloneFailed,
+	}}
+
+	sink := newFakeSink()
+	r := &run.Run{ID: "run1", ProjectID: "p1", Trigger: run.Trigger{Branch: "release"}}
+	err := b.Run(context.Background(), r, sink)
+	if err != ErrBuildFailed {
+		t.Fatalf("expected ErrBuildFailed, got %v", err)
+	}
+	if sink.done[0] != run.StepFailed {
+		t.Fatalf("expected clone step failed, got %v", sink.done)
+	}
+	for _, want := range []string{"分支/commit 在远端不存在", "请核对触发分支/commit 是否已推送到远端"} {
+		if !strings.Contains(sink.failureLog, want) {
+			t.Fatalf("failure_log 应含 %q, got %q", want, sink.failureLog)
+		}
+		if !strings.Contains(sink.allLogText(), want) {
+			t.Fatalf("运行日志应含 %q, got %q", want, sink.allLogText())
+		}
+	}
+	if strings.Contains(sink.failureLog, "鉴权/网络/ref 不存在或被 SSRF 拒绝") {
+		t.Fatalf("不该再退化成通用文案: %q", sink.failureLog)
+	}
+	// 旧断言口径(非分类错误)仍要有兜底文本。
+	sink2 := newFakeSink()
+	b.cloner = &stubCloner{err: errors.New("boom")}
+	if err := b.Run(context.Background(), r, sink2); err != ErrBuildFailed {
+		t.Fatalf("expected ErrBuildFailed, got %v", err)
+	}
+	if !strings.Contains(sink2.failureLog, "boom") {
+		t.Fatalf("兜底 detail 应带底层摘要, got %q", sink2.failureLog)
 	}
 }
